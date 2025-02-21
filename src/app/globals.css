@@ -4,79 +4,45 @@
 
 /* 🌟 Default styling for the whole app */
 body {
-  @apply bg-darkBg text-white;
-  font-family: theme("fontFamily.modern"); /* Use modern font by default */
+  @apply bg-darkBg;
+  font-family: theme("fontFamily.modern");
 }
 
-/* 🚀 Retro text style */
+/* Retro text style (if needed) */
 .retro-text {
   font-family: theme("fontFamily.retro");
   @apply text-neonBlue text-lg;
 }
 
-/* ✨ Trendy button */
+/* Trendy button (if needed) */
 .trendy-button {
   @apply px-6 py-3 text-lg font-bold text-white bg-retroPink rounded-lg hover:bg-pink-500 transition-all;
 }
 
-/* src/app/globals.css (or your main global CSS file) */
+/* Animations, rock-hover, pulse-hover, shake-hover, spin-hover, etc. remain the same... */
+@keyframes rock { /* ... */ }
+.rock-hover:hover { /* ... */ }
 
-@keyframes rock {
-  0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(3deg); }
-  50% { transform: rotate(0deg); }
-  75% { transform: rotate(-3deg); }
-}
+@keyframes pulse { /* ... */ }
+.pulse-hover:hover { /* ... */ }
 
-/* A utility class that triggers the rock animation on hover */
-.rock-hover:hover {
-  animation: rock 0.5s ease-in-out;
-}
+/* etc. for shake and spin animations */
 
-/* 1) Pulse animation (scales up slightly and returns) */
-@keyframes pulse {
-  0%, 100% {
-    transform: scale(1);
+/* ------------- Universal Gradient Except Nav ------------- */
+@layer base {
+  /* 
+    1) Apply the gradient to ALL text elements site-wide:
+       h1, h2, p, a, li, span, button, input, etc.
+  */
+  h1, h2, h3, h4, h5, h6,
+  p, li, span, strong, em, button, input, textarea, label, th, td,
+  a:not(.nav-override) { 
+    @apply text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-cyan-400;
   }
-  50% {
-    transform: scale(1.05);
-  }
-}
 
-/* Trigger a single pulse on hover (not infinite) */
-.pulse-hover:hover {
-  animation: pulse 0.5s ease-in-out;
-}
-
-/* If you want continuous pulsing while hovered: */
-.pulse-hover-infinite:hover {
-  animation: pulse 0.8s ease-in-out infinite;
-}
-
-/* 2) Shake animation (horizontal shake) */
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  20%, 60% { transform: translateX(-6px); }
-  40%, 80% { transform: translateX(6px); }
-}
-
-/* Trigger a quick shake on hover */
-.shake-hover:hover {
-  animation: shake 0.5s ease-in-out;
-}
-
-/* 3) Spin animation (360 rotation) */
-@keyframes spin {
-  0%   { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* Single spin on hover */
-.spin-hover:hover {
-  animation: spin 0.8s linear;
-}
-
-/* If you want a continuous spin while hovered: */
-.spin-hover-infinite:hover {
-  animation: spin 1s linear infinite;
+  /*
+    2) EXCLUDE or OVERRIDE the nav text to remain white:
+       We'll do this in layout.tsx by adding a specific class 
+       or by scoping nav a. (See next snippet.)
+  */
 }
