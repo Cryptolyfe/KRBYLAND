@@ -1,0 +1,8 @@
+{
+    // Turn off the built-in CSS validation so it won’t complain
+    "css.validate": false,
+  
+    // If you have a PostCSS extension or want to try enabling PostCSS linting
+    "postcss.validate": true
+  }
+  
