@@ -8,41 +8,71 @@ body {
   font-family: theme("fontFamily.modern");
 }
 
-/* Retro text style (if needed) */
+/* Example retro text style (if needed) */
 .retro-text {
   font-family: theme("fontFamily.retro");
   @apply text-neonBlue text-lg;
 }
 
-/* Trendy button (if needed) */
+/* Example trendy button (if needed) */
 .trendy-button {
   @apply px-6 py-3 text-lg font-bold text-white bg-retroPink rounded-lg hover:bg-pink-500 transition-all;
 }
 
-/* Animations, rock-hover, pulse-hover, shake-hover, spin-hover, etc. remain the same... */
-@keyframes rock { /* ... */ }
-.rock-hover:hover { /* ... */ }
+/* Example animations: rock, pulse, shake, spin, etc. */
+@keyframes rock {
+  0%, 100% { transform: rotate(0deg); }
+  25%      { transform: rotate(3deg); }
+  50%      { transform: rotate(0deg); }
+  75%      { transform: rotate(-3deg); }
+}
+.rock-hover:hover {
+  animation: rock 0.5s ease-in-out;
+}
 
-@keyframes pulse { /* ... */ }
-.pulse-hover:hover { /* ... */ }
+/* ...similar for pulse, shake, spin, etc. */
 
-/* etc. for shake and spin animations */
-
-/* ------------- Universal Gradient Except Nav ------------- */
+/* ------------- Universal Gradient (excluding <input> & <textarea>) ------------- */
 @layer base {
-  /* 
-    1) Apply the gradient to ALL text elements site-wide:
-       h1, h2, p, a, li, span, button, input, etc.
+  /*
+    Apply a universal gradient to most text elements: 
+    but remove input & textarea so they can be styled separately.
   */
   h1, h2, h3, h4, h5, h6,
-  p, li, span, strong, em, button, input, textarea, label, th, td,
-  a:not(.nav-override) { 
+  p, li, span, strong, em, button, label, th, td,
+  a:not(.nav-override) {
     @apply text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-cyan-400;
   }
+}
 
-  /*
-    2) EXCLUDE or OVERRIDE the nav text to remain white:
-       We'll do this in layout.tsx by adding a specific class 
-       or by scoping nav a. (See next snippet.)
-  */
+/* ------------- Gradient Text for Inputs (Typed & Autofilled) ------------- */
+@layer utilities {
+  /* Single combined .gradient-text-input definition */
+  .gradient-text-input {
+    background-image: linear-gradient(to right, #ec4899, #fbbf24);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* Override browser defaults for autofill on Chrome/Safari */
+  input.gradient-text-input:-webkit-autofill,
+  input.gradient-text-input:-webkit-autofill:focus,
+  input.gradient-text-input:-webkit-autofill:hover,
+  textarea.gradient-text-input:-webkit-autofill,
+  textarea.gradient-text-input:-webkit-autofill:focus,
+  textarea.gradient-text-input:-webkit-autofill:hover {
+    background-image: linear-gradient(to right, #ec4899, #fbbf24) !important;
+    background-clip: text !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+
+    /*
+      Painted background behind text so the normal 
+      yellow autofill color doesn't appear.
+      Adjust #000 to match your input's background (#27272a, etc.) if needed.
+    */
+    box-shadow: 0 0 0 1000px #000 inset !important;
+  }
 }

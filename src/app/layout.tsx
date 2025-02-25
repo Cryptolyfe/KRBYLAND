@@ -3,9 +3,8 @@
 import "./globals.css";
 import Image from "next/image";
 import Link from "next/link";
-
-// Example: Press_Start_2P for retro vibe
 import { Press_Start_2P } from "next/font/google";
+
 const pressStart2P = Press_Start_2P({
   subsets: ["latin"],
   weight: "400",
@@ -18,20 +17,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`min-h-screen text-xs bg-black ${pressStart2P.className}`}>
         <header className="p-4 bg-black border-b border-neutral-800">
           <nav className="container mx-auto flex items-center justify-between">
-            {/* Logo + Title */}
-            <div className="flex items-center space-x-3">
-              <Image
-                src="/images/krbyland_logo.png"
-                alt="KRBYLAND Logo"
-                width={40}
-                height={40}
-              />
-              <span className="text-base font-bold">
-                KRBYLAND
-              </span>
+            {/* Logo + Title (wrapped in Link). Increased spacing => "space-x-3" */}
+            <div className="flex items-center">
+              <Link href="/" className="flex items-center space-x-5">
+                <Image
+                  src="/images/krbyland_logo.png"
+                  alt="KRBYLAND Logo"
+                  width={40}
+                  height={40}
+                />
+                <span className="text-base font-bold">KRBYLAND</span>
+              </Link>
             </div>
 
-            {/* Nav with white text default + multi-color hovers, using .nav-override to exclude from the universal gradient */}
+            {/* Nav with white text + multi-color hovers */}
             <ul className="flex gap-5">
               <li>
                 <Link
@@ -77,9 +76,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </nav>
         </header>
 
-        <main className="container mx-auto px-4 py-8">
-          {children}
-        </main>
+        <main className="container mx-auto px-4 py-8">{children}</main>
       </body>
     </html>
   );

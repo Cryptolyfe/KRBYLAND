@@ -1,52 +1,57 @@
-// app/livestream/page.tsx
 "use client";
 
+import React from "react";
+import ReactPlayer from "react-player";
 import Link from "next/link";
 
-export default function LivestreamPage() {
+export default function YouTubeStreamPage() {
   return (
     <main className="min-h-screen bg-black text-white flex flex-col items-center p-8">
-      <h1 className="text-3xl mb-6">Livestream</h1>
-      <p className="max-w-lg text-center mb-8">
-        Choose your preferred streaming option:
-      </p>
 
-      <div className="flex flex-col gap-4">
-        {/* HLS Link */}
+      {/* Horizontal Nav (rainbow hover) */}
+      <nav className="mb-8 flex gap-4">
         <Link
           href="/livestream/hls"
           className="
-            bg-cyan-600 px-4 py-2 rounded transition-colors
+            px-4 py-2 transition-colors
             hover:bg-gradient-to-r hover:from-pink-500 hover:to-yellow-500
             hover:text-transparent hover:bg-clip-text
           "
         >
-          HLS (Standard Latency)
+          HLS
         </Link>
-
-        {/* WebRTC Link */}
         <Link
           href="/livestream/webrtc"
           className="
-            bg-green-600 px-4 py-2 rounded transition-colors
+            px-4 py-2 transition-colors
             hover:bg-gradient-to-r hover:from-indigo-500 hover:to-pink-500
             hover:text-transparent hover:bg-clip-text
           "
         >
-          WebRTC (Low Latency)
+          WebRTC
         </Link>
-
-        {/* YouTube Link */}
         <Link
           href="/livestream/youtube"
           className="
-            bg-red-600 px-4 py-2 rounded transition-colors
+            px-4 py-2 transition-colors
             hover:bg-gradient-to-r hover:from-yellow-400 hover:to-purple-600
             hover:text-transparent hover:bg-clip-text
           "
         >
-          YouTube Live
+          YouTube
         </Link>
+      </nav>
+
+      <h1 className="text-3xl mb-4">YouTube Live</h1>
+
+      <div className="w-full max-w-4xl aspect-video">
+        <ReactPlayer
+          url="https://www.youtube.com/watch?v=YOUR_LIVE_STREAM_ID"
+          controls
+          playing
+          width="100%"
+          height="100%"
+        />
       </div>
     </main>
   );
