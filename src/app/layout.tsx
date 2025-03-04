@@ -1,22 +1,23 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ethers } from "ethers";
-import "./globals.css"; // The code that excludes <button>/<select> from the universal gradient
+import "./globals.css";
 import Image from "next/image";
 import Link from "next/link";
 import { Press_Start_2P } from "next/font/google";
 
-// 1) Press_Start_2P
+/** 1) Retro Font => Press_Start_2P => pink→yellow gradient from your globals. */
 const pressStart2P = Press_Start_2P({
   subsets: ["latin"],
   weight: "400",
   display: "swap",
 });
 
-/** 2) 5 EVM Chains */
+/** 2) EVM Chains => Ethereum, Polygon, Arbitrum, Avalanche, Base (unchanged) */
 const CHAINS = {
   ETHEREUM: {
+    label: "Ethereum",
     chainId: "0x1",
     chainName: "Ethereum Mainnet",
     nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
@@ -24,6 +25,7 @@ const CHAINS = {
     blockExplorerUrls: ["https://etherscan.io"],
   },
   POLYGON: {
+    label: "Polygon",
     chainId: "0x89",
     chainName: "Polygon Mainnet",
     nativeCurrency: { name: "MATIC", symbol: "MATIC", decimals: 18 },
@@ -31,6 +33,7 @@ const CHAINS = {
     blockExplorerUrls: ["https://polygonscan.com"],
   },
   ARBITRUM: {
+    label: "Arbitrum",
     chainId: "0xa4b1",
     chainName: "Arbitrum One",
     nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
@@ -38,6 +41,7 @@ const CHAINS = {
     blockExplorerUrls: ["https://arbiscan.io"],
   },
   AVALANCHE: {
+    label: "Avalanche",
     chainId: "0xa86a",
     chainName: "Avalanche C-Chain",
     nativeCurrency: { name: "AVAX", symbol: "AVAX", decimals: 18 },
@@ -45,6 +49,7 @@ const CHAINS = {
     blockExplorerUrls: ["https://snowtrace.io"],
   },
   BASE: {
+    label: "Base",
     chainId: "0x2105",
     chainName: "Base Mainnet",
     nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
@@ -53,84 +58,54 @@ const CHAINS = {
   },
 } as const;
 
-/** 3) A CUSTOM CHAIN DROPDOWN (no native <select>) */
-function ChainDropdown({
+/** EVM chain dropdown => same as before. */
+function EvmChainDropdown({
   chains,
-  selectedKey,
-  onSelect,
+  selectedChain,
+  onSelectChain,
 }: {
-  chains: { key: string; chainName: string }[];
-  selectedKey: string;
-  onSelect: (chainKey: string) => void;
+  chains: { key: string; label: string }[];
+  selectedChain: string;
+  onSelectChain: (key: string) => void;
 }) {
   const [open, setOpen] = useState(false);
 
-  // find chain name for the currently selected key
-  const selectedChainName =
-    chains.find((c) => c.key === selectedKey)?.chainName || "Select Chain";
-
-  // The same pink→yellow gradient on hover style for the toggle
-  const toggleClasses = `
-    px-2 py-1
-    text-xs
-    text-white
-    border-2
-    border-white
-    rounded-full
-    bg-transparent
-    transition-colors
-    cursor-pointer
-    hover:bg-gradient-to-r
-    hover:from-pink-500
-    hover:to-yellow-500
-    hover:text-transparent
-    hover:bg-clip-text
-  `;
+  const chainLabel = chains.find((c) => c.key === selectedChain)?.label || "Select Chain";
 
   return (
-    <div className="relative inline-block">
-      {/* 1) The toggle button */}
+    <div className="relative inline-block ml-2">
       <button
-        onClick={() => setOpen((prev) => !prev)}
-        className={toggleClasses}
+        onClick={() => setOpen(!open)}
+        className="
+          px-2 py-1 text-xs text-white border-2 border-white rounded-full bg-transparent
+          transition-colors cursor-pointer
+          hover:bg-gradient-to-r hover:from-pink-500 hover:to-yellow-500
+          hover:text-transparent hover:bg-clip-text
+        "
       >
-        {selectedChainName}
+        {chainLabel}
       </button>
 
-      {/* 2) The custom dropdown menu => only shows when open===true */}
       {open && (
-        <div className="
-          absolute
-          mt-2
-          w-60                /* Increased width from w-44 to w-60 */
-          whitespace-nowrap   /* Prevent chain names from wrapping */
-          border
-          border-white
-          rounded
-          bg-black
-          text-white
-          z-10
-        ">
-          {chains.map((chain) => (
+        <div
+          className="
+            absolute mt-2 w-60 whitespace-nowrap border border-white rounded bg-black text-white z-10
+          "
+        >
+          {chains.map((c) => (
             <div
-              key={chain.key}
+              key={c.key}
               onClick={() => {
-                onSelect(chain.key);
+                onSelectChain(c.key);
                 setOpen(false);
               }}
-              // White text => pink→yellow gradient on hover
               className="
-                px-3
-                py-1
-                cursor-pointer
-                hover:bg-gradient-to-r
-                hover:from-pink-500
-                hover:to-yellow-500
-                hover:text-transparent
-                hover:bg-clip-text
+                px-3 py-1 cursor-pointer
+                hover:bg-gradient-to-r hover:from-pink-500 hover:to-yellow-500
+                hover:text-transparent hover:bg-clip-text
               "
             >
-              {chain.chainName}
+              {c.label}
             </div>
           ))}
         </div>
@@ -139,39 +114,225 @@ function ChainDropdown({
   );
 }
 
-/** 4) RootLayout => uses our custom ChainDropdown for chain selection */
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const [account, setAccount] = useState<string | null>(null);
+/** Phantom chain dropdown => pick “Solana” or “Sui”, ignoring Phantom EVM. */
+function PhantomDropdown({
+  onSelectPhantomChain,
+}: {
+  onSelectPhantomChain: (chain: "SOLANA" | "SUI") => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="relative inline-block">
+      <button
+        onClick={() => setOpen(!open)}
+        className="
+          px-2 py-1 text-xs text-white border-2 border-white rounded-full bg-transparent
+          transition-colors cursor-pointer
+          hover:bg-gradient-to-r hover:from-pink-500 hover:to-yellow-500
+          hover:text-transparent hover:bg-clip-text
+        "
+      >
+        Phantom
+      </button>
+
+      {open && (
+        <div
+          className="
+            absolute mt-2 w-28 whitespace-nowrap border border-white rounded bg-black text-white z-10
+          "
+        >
+          <div
+            onClick={() => {
+              onSelectPhantomChain("SOLANA");
+              setOpen(false);
+            }}
+            className="
+              px-3 py-1 cursor-pointer
+              hover:bg-gradient-to-r hover:from-pink-500 hover:to-yellow-500
+              hover:text-transparent hover:bg-clip-text
+            "
+          >
+            Solana
+          </div>
+          <div
+            onClick={() => {
+              onSelectPhantomChain("SUI");
+              setOpen(false);
+            }}
+            className="
+              px-3 py-1 cursor-pointer
+              hover:bg-gradient-to-r hover:from-pink-500 hover:to-yellow-500
+              hover:text-transparent hover:bg-clip-text
+            "
+          >
+            Sui
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** 
+ * The aggregator code => 
+ *   - Only rendered *client-side* after 'ready' is set (useEffect). 
+ *   - This prevents SSR from generating aggregator HTML that extensions can modify pre-hydration.
+ */
+function ClientSideAggregator() {
+  // track which wallet => metamask|coinbase|phantomSolana|phantomSui|null
+  const [connectedWallet, setConnectedWallet] = useState<
+    "metamask"|"coinbase"|"phantomSolana"|"phantomSui"|null
+  >(null);
+
+  // EVM address => metamask or coinbase
+  const [evmAddress, setEvmAddress] = useState<string|null>(null);
+
+  // Phantom => solana or sui
+  const [solanaAddress, setSolanaAddress] = useState<string|null>(null);
+  const [suiAddress, setSuiAddress] = useState<string|null>(null);
+
+  // EVM chain => default => "ETHEREUM"
   const [selectedChain, setSelectedChain] = useState<keyof typeof CHAINS>("ETHEREUM");
 
-  // Same connect logic
-  const connectWallet = async () => {
+  // show sub-wallet => metamask, coinbase, phantom
+  const [showWalletButtons, setShowWalletButtons] = useState(false);
+
+  /** Helper => debug which providers exist. */
+  function debugProviders() {
+    console.log("window.ethereum =>", window.ethereum);
+    console.log("window.ethereum?.providers =>", (window.ethereum as any)?.providers);
+  }
+
+  /** EVM => Connect => MetaMask => ignoring Phantom EVM. */
+  async function connectMetaMask() {
+    debugProviders();
+    setConnectedWallet("metamask");
+    setSolanaAddress(null);
+    setSuiAddress(null);
+
     if (!window.ethereum) {
-      console.error("Please install MetaMask or another compatible wallet.");
+      alert("No window.ethereum => metamask extension missing?");
+      return;
+    }
+    let chosenProvider: any = window.ethereum;
+    if (window.ethereum.providers) {
+      const mm = window.ethereum.providers.find((p: any) => p.isMetaMask);
+      if (mm) chosenProvider = mm;
+    }
+    if (!chosenProvider?.isMetaMask) {
+      alert("Didn't find isMetaMask => overshadow or not installed!");
       return;
     }
     try {
-      const provider = new ethers.BrowserProvider(window.ethereum as any);
+      const provider = new ethers.BrowserProvider(chosenProvider);
       await provider.send("eth_requestAccounts", []);
       const signer = await provider.getSigner();
       const address = await signer.getAddress();
-      setAccount(address);
-    } catch (error) {
-      console.error("Wallet connection error:", error);
+      console.log("MetaMask address =>", address);
+      setEvmAddress(address);
+    } catch (err) {
+      console.error("MetaMask connect error", err);
     }
-  };
+  }
 
-  // same chain switch logic
-  const switchChain = async (chainKey: keyof typeof CHAINS) => {
-    if (!window.ethereum) return;
+  /** EVM => coinbase => ignoring Phantom EVM. */
+  async function connectCoinbase() {
+    debugProviders();
+    setConnectedWallet("coinbase");
+    setSolanaAddress(null);
+    setSuiAddress(null);
+
+    if (!window.ethereum) {
+      alert("No window.ethereum => coinbase extension missing?");
+      return;
+    }
+    let chosenProvider: any = window.ethereum;
+    if (window.ethereum.providers) {
+      const cb = window.ethereum.providers.find((p: any) => p.isCoinbaseWallet);
+      if (cb) chosenProvider = cb;
+    }
+    if (!chosenProvider?.isCoinbaseWallet) {
+      alert("Didn't find isCoinbaseWallet => overshadow or not installed!");
+      return;
+    }
+    try {
+      const provider = new ethers.BrowserProvider(chosenProvider);
+      await provider.send("eth_requestAccounts", []);
+      const signer = await provider.getSigner();
+      const address = await signer.getAddress();
+      console.log("Coinbase address =>", address);
+      setEvmAddress(address);
+    } catch (err) {
+      console.error("Coinbase connect error", err);
+    }
+  }
+
+  /** Phantom => Solana => ignoring EVM. */
+  async function connectPhantomSolana() {
+    debugProviders();
+    setConnectedWallet("phantomSolana");
+    setEvmAddress(null);
+    setSuiAddress(null);
+
+    if (!window.solana?.isPhantom) {
+      alert("Phantom overshadowed or not found for Solana => disable Phantom EVM?");
+      return;
+    }
+    try {
+      const resp = await window.solana.connect();
+      const solAddr = resp.publicKey.toString();
+      console.log("Phantom Solana address =>", solAddr);
+      setSolanaAddress(solAddr);
+    } catch (err) {
+      console.error("Phantom(Solana) connect error", err);
+    }
+  }
+
+  /** Phantom => Sui => ignoring EVM. */
+  async function connectPhantomSui() {
+    debugProviders();
+    setConnectedWallet("phantomSui");
+    setEvmAddress(null);
+    setSolanaAddress(null);
+
+    if (!window.phantom?.sui) {
+      alert("Phantom overshadowed or not found for Sui!");
+      return;
+    }
+    try {
+      console.log("Phantom(Sui) => placeholder only");
+      setSuiAddress("0xsuiBetaAddress1234");
+    } catch (err) {
+      console.error("Phantom(Sui) connect error", err);
+    }
+  }
+
+  function handleSelectPhantomChain(chain: "SOLANA" | "SUI") {
+    if (chain==="SOLANA") connectPhantomSolana();
+    else connectPhantomSui();
+  }
+
+  /** EVM => chain switching => metamask|coinbase => no rainbow. */
+  async function switchChain(chainKey: keyof typeof CHAINS) {
+    if (!evmAddress) {
+      alert("No EVM address connected!");
+      return;
+    }
+    if (connectedWallet!=="metamask" && connectedWallet!=="coinbase") {
+      alert("Chain switching => EVM only => metamask or coinbase");
+      return;
+    }
     const chainData = CHAINS[chainKey];
+    if (!chainData) return;
+
     try {
       await window.ethereum.request({
         method: "wallet_switchEthereumChain",
         params: [{ chainId: chainData.chainId }],
       });
-    } catch (error: any) {
-      if (error.code === 4902) {
+    } catch(error: any) {
+      if (error.code===4902) {
         // chain not added => attempt add
         try {
           await window.ethereum.request({
@@ -186,27 +347,32 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               },
             ],
           });
-        } catch (addError) {
-          console.error("Failed to add chain:", addError);
+        } catch (addErr) {
+          console.error("Failed to add chain", addErr);
         }
       } else {
-        console.error("Failed to switch chain:", error);
+        console.error("Failed to switch chain", error);
       }
     }
-  };
+  }
 
-  // Build an array for the custom dropdown
-  const chainArray = Object.entries(CHAINS).map(([key, data]) => ({
-    key,
-    chainName: data.chainName,
-  }));
+  /** show truncated address => EVM or solana or sui. */
+  let displayAddress: string | null = null;
+  if (connectedWallet==="metamask"||connectedWallet==="coinbase") {
+    if (evmAddress) {
+      displayAddress = evmAddress.slice(0,5)+"..."+evmAddress.slice(-4);
+    }
+  } else if (connectedWallet==="phantomSolana") {
+    if (solanaAddress) {
+      displayAddress = solanaAddress.slice(0,5)+"..."+solanaAddress.slice(-4);
+    }
+  } else if (connectedWallet==="phantomSui") {
+    if (suiAddress) {
+      displayAddress = suiAddress.slice(0,5)+"..."+suiAddress.slice(-4);
+    }
+  }
 
-  // truncated address
-  const truncatedAddress = account
-    ? `${account.slice(0, 5)}...${account.slice(-4)}`
-    : "";
-
-  // White→pink/yellow gradient on hover => for Connect Wallet
+  // same pink->yellow => text-xs => retro style
   const sharedHoverGradient = `
     px-2 py-1
     text-xs
@@ -224,103 +390,166 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     hover:bg-clip-text
   `;
 
+  function disconnectWallet() {
+    setConnectedWallet(null);
+    setEvmAddress(null);
+    setSolanaAddress(null);
+    setSuiAddress(null);
+  }
+
+  return (
+    <header className="p-2 bg-black border-b border-neutral-800">
+      <nav className="container mx-auto flex items-center justify-between">
+        
+        {/* LEFT => brand + chain => connect/disconnect */}
+        <div className="flex items-center">
+          <Link href="/" className="flex items-center space-x-2">
+            <Image
+              src="/images/krbyland_logo.png"
+              alt="KRBYLAND Logo"
+              width={36}
+              height={36}
+            />
+            <span className="text-xs font-bold"></span>
+          </Link>
+
+          {(connectedWallet==="metamask" || connectedWallet==="coinbase")
+            && evmAddress && (
+            <EvmChainDropdown
+              chains={Object.keys(CHAINS).map((k) => ({
+                key: k,
+                label: CHAINS[k as keyof typeof CHAINS].label,
+              }))}
+              selectedChain={selectedChain}
+              onSelectChain={(ck) => {
+                setSelectedChain(ck as keyof typeof CHAINS);
+                switchChain(ck as keyof typeof CHAINS);
+              }}
+            />
+          )}
+
+          <div className="ml-2">
+            {displayAddress ? (
+              <div className="flex items-center gap-2">
+                <button className={sharedHoverGradient}>
+                  {displayAddress}
+                </button>
+                <button onClick={disconnectWallet} className={sharedHoverGradient}>
+                  Disconnect
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowWalletButtons(!showWalletButtons)}
+                className={sharedHoverGradient}
+              >
+                {showWalletButtons ? "Hide Wallets" : "Connect Wallet"}
+              </button>
+            )}
+          </div>
+
+          {/* sub-buttons => metamask, coinbase, phantom => only if not connected */}
+          {!displayAddress && showWalletButtons && (
+            <div className="ml-2 flex items-center space-x-2">
+              <button onClick={connectMetaMask} className={sharedHoverGradient}>
+                MetaMask
+              </button>
+              <button onClick={connectCoinbase} className={sharedHoverGradient}>
+                Coinbase
+              </button>
+              <PhantomDropdown
+                onSelectPhantomChain={(chain) => {
+                  if (chain==="SOLANA") connectPhantomSolana();
+                  else connectPhantomSui();
+                }}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* RIGHT => nav => text-xs => pink->yellow => your style */}
+        <ul className="flex gap-2 text-[10px]">
+          <li>
+            <Link
+              href="/"
+              className="nav-override text-white hover:text-fuchsia-500 transition-colors"
+            >
+              Home
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="/about"
+              className="nav-override text-white hover:text-green-300 transition-colors"
+            >
+              About
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="/livestream"
+              className="nav-override text-white hover:text-cyan-300 transition-colors"
+            >
+              Livestream
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="/contact"
+              className="nav-override text-white hover:text-indigo-500 transition-colors"
+            >
+              Contact
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="/settings"
+              className="nav-override text-white hover:text-yellow-300 transition-colors"
+            >
+              Settings
+            </Link>
+          </li>
+        </ul>
+      </nav>
+    </header>
+  );
+}
+
+/** 
+ * ================ RootLayout with SSR Skipped for aggregator ================
+ * We'll wrap the aggregator UI in a 'ready' check so it doesn't SSR any aggregator HTML
+ * => avoids extension messing with SSR output => no hydration mismatch
+ */
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    // Once the client is mounted, we show the aggregator
+    setReady(true);
+  }, []);
+
+  if (!ready) {
+    // Return minimal SSR skeleton => no aggregator HTML => no mismatch
+    return (
+      <html lang="en">
+        <body className={`min-h-screen text-xs bg-black ${pressStart2P.className}`}>
+          {/* Possibly a placeholder or spinner */}
+          <div className="p-4 text-center text-white">Loading aggregator...</div>
+          <main className="container mx-auto px-4 py-4">
+            {children}
+          </main>
+        </body>
+      </html>
+    );
+  }
+
+  // Now that we're client-side only, we safely render aggregator 
   return (
     <html lang="en">
       <body className={`min-h-screen text-xs bg-black ${pressStart2P.className}`}>
-        
-        {/* 5) Nav Bar / Header */}
-        <header className="p-2 bg-black border-b border-neutral-800">
-          <nav className="container mx-auto flex items-center justify-between">
+        {/* The aggregator UI => no SSR => no mismatch */}
+        <ClientSideAggregator />
 
-            {/* LEFT SIDE: Logo + Title + Connect or Address */}
-            <div className="flex items-center">
-              {/* Logo + Title */}
-              <Link href="/" className="flex items-center space-x-2">
-                <Image
-                  src="/images/krbyland_logo.png"
-                  alt="KRBYLAND Logo"
-                  width={36}
-                  height={36}
-                />
-                <span className="text-xs font-bold">KRBYLAND</span>
-              </Link>
-
-              {/* Connect Button or truncated address => same pink→yellow hover */}
-              <div className="ml-2">
-                {account ? (
-                  <button className={sharedHoverGradient}>
-                    {truncatedAddress}
-                  </button>
-                ) : (
-                  <button onClick={connectWallet} className={sharedHoverGradient}>
-                    Connect Wallet
-                  </button>
-                )}
-              </div>
-
-              {/* 6) Instead of <select>, we show our custom chain dropdown, if connected */}
-              {account && (
-                <div className="ml-2">
-                  <ChainDropdown
-                    chains={chainArray}
-                    selectedKey={selectedChain}
-                    onSelect={(chainKey) => {
-                      setSelectedChain(chainKey as keyof typeof CHAINS);
-                      switchChain(chainKey as keyof typeof CHAINS);
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* RIGHT SIDE: Full Nav => Home, About, Livestream, Contact, Settings */}
-            <ul className="flex gap-2">
-              <li>
-                <Link
-                  href="/"
-                  className="nav-override text-white hover:text-fuchsia-500 transition-colors text-xs"
-                >
-                  Home
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/about"
-                  className="nav-override text-white hover:text-green-300 transition-colors text-xs"
-                >
-                  About
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/livestream"
-                  className="nav-override text-white hover:text-cyan-300 transition-colors text-xs"
-                >
-                  Livestream
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/contact"
-                  className="nav-override text-white hover:text-indigo-500 transition-colors text-xs"
-                >
-                  Contact
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/settings"
-                  className="nav-override text-white hover:text-yellow-300 transition-colors text-xs"
-                >
-                  Settings
-                </Link>
-              </li>
-            </ul>
-
-          </nav>
-        </header>
-
-        {/* 7) Main Content */}
         <main className="container mx-auto px-4 py-4">
           {children}
         </main>
