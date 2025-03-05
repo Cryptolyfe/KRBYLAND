@@ -17,8 +17,9 @@ export default function AboutPage() {
         </p>
         <p className="text-sm bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-green-400">
           Our advanced technology syncs stage performances, audio, and interactive 
-          elements, making every concert a unique, surreal experience. Let’s redefine 
-          “going to a gig” together.
+          elements, making every concert a unique, surreal experience. Direct connectity 
+          with the most popular blockchains activates a new revenue stream for DJs, Musicians, Singers,
+          Artists, Dancers and more!
         </p>
       </section>
     </main>

@@ -7,7 +7,7 @@ import ReactPlayer from "react-player";
 /** 
  * A single page that conditionally renders:
  *  - HLS
- *  - WebRTC (placeholder)
+ *  - WebRTC
  *  - YouTube
  *  - Twitch
  *  - Facebook
@@ -25,7 +25,11 @@ type StreamOption =
   | "instagram"
   | "tiktok";
 
-export default function MegaLivestreamPage() {
+/** 
+ * Renamed from MegaLivestreamPage => Page, so Next.js 
+ * treats this as the default export for /livestream.
+ */
+export default function Page() {
   // Track selected approach
   const [selected, setSelected] = useState<StreamOption>("hls");
 
@@ -215,7 +219,7 @@ function TiktokPlayer() {
       <h2 className="text-2xl mb-2">TikTok Live (coming soon!)</h2>
       <div className="w-full aspect-video bg-neutral-700 flex items-center justify-center">
         <p className="text-sm text-gray-400">
-          Embedding TikTok Live not officially supported 
+          Embedding TikTok Live not officially supported
         </p>
       </div>
     </div>
