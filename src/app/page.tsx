@@ -4,6 +4,7 @@ import React, { useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Environment, useTexture } from "@react-three/drei";
 import * as THREE from "three";
+import WalletConnect from './components/WalletConnect';
 
 /* =================== TYPE DEFINITIONS =================== */
 interface CeilingLightProps {
