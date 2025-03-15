@@ -1,7 +1,7 @@
 [**KRBYLAND**](https://krbyland.vercel.app/)
 
 
-Welcome to **KRBYLAND** – where retro meets radical in a neon-drenched digital universe! Step into a vibrant world where classic pixel vibes blend with modern blockchain magic. Whether you're here to explore a decentralized metropolis, connect with your favorite wallets, or simply vibe with the 8-bit tunes, KRBYLAND is your ultimate playground.
+-Where retro meets radical in a neon-drenched digital universe! Step into a vibrant world where classic pixel vibes blend with modern blockchain magic. Whether you're here to explore a decentralized metropolis, connect with your favorite wallets, or simply vibe with the 8-bit tunes, KRBYLAND is your ultimate playground.
 
 ## KRBYLAND: Gig From Anywhere!
 
