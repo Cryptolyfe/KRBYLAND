@@ -84,32 +84,37 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
   async function connectCoinbase() {
     setConnectedWallet("coinbase");
     setEvmAddress(null);
-
-    if (!window.ethereum) {
-      alert("No window.ethereum => Coinbase extension missing?");
+  
+    const { ethereum } = window as any;
+  
+    if (!ethereum) {
+      alert("Coinbase Wallet extension is not installed.");
       return;
     }
-
-    let chosenProvider = window.ethereum;
-    if (window.ethereum.providers?.length) {
-      const cb = window.ethereum.providers.find((p) => p.isCoinbaseWallet);
-      if (cb) chosenProvider = cb;
+  
+    let chosenProvider = ethereum;
+  
+    // Coinbase Wallet injected provider detection logic:
+    if (ethereum.providers?.length) {
+      chosenProvider = ethereum.providers.find((provider: any) => provider.isCoinbaseWallet);
     }
-
+  
     if (!chosenProvider?.isCoinbaseWallet) {
-      alert("Coinbase overshadowed or not found!");
+      alert("Coinbase Wallet is either overshadowed by another wallet or not found. Please ensure it's installed and enabled.");
       return;
     }
-
+  
     try {
       const provider = new BrowserProvider(chosenProvider as Eip1193Provider);
       await provider.send("eth_requestAccounts", []);
       const signer = await provider.getSigner();
-      setEvmAddress(await signer.getAddress());
+      const address = await signer.getAddress();
+      setEvmAddress(address);
     } catch (err: unknown) {
       console.error("Coinbase connect error:", err);
     }
   }
+  
 
   // ============== CONNECT => PHANTOM => SOLANA ==============
   async function connectPhantom() {
