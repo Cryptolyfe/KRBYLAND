@@ -1,20 +1,18 @@
 "use client";
 
 import React, { useState } from "react";
-import { ethers } from "ethers";
-import "./globals.css"; // The code that excludes <button>/<select> from your universal gradient
+import { ethers, Eip1193Provider, BrowserProvider } from "ethers";
+import "./globals.css";
 import Image from "next/image";
 import Link from "next/link";
 import { Press_Start_2P } from "next/font/google";
 
-/** Press_Start_2P as before */
 const pressStart2P = Press_Start_2P({
   subsets: ["latin"],
   weight: "400",
   display: "swap",
 });
 
-/** Minimal chain configs for demonstration */
 const CHAINS = {
   ETHEREUM: {
     label: "Ethereum",
@@ -32,180 +30,132 @@ const CHAINS = {
     rpcUrls: ["https://polygon-rpc.com"],
     blockExplorerUrls: ["https://polygonscan.com"],
   },
-  // ... Arbitrum, Avalanche, Base if desired
+  // ... add more as needed
 } as const;
 
-/** 
- * 1) A custom chain dropdown => shows if user is EVM-connected 
+type ChainKey = keyof typeof CHAINS;
+
+/**
+ * 1) The RootLayout => brand + aggregator
+ *    Because this file is `"use client"`, we can pass function props freely inside it.
  */
-function ChainDropdown({
-  chains,
-  selectedChain,
-  onSelectChain,
-}: {
-  chains: { key: string; label: string }[];
-  selectedChain: string;
-  onSelectChain: (key: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-
-  // find label for the selected chain
-  const chainLabel =
-    chains.find((c) => c.key === selectedChain)?.label || "Select Chain";
-
-  return (
-    <div className="relative inline-block ml-2">
-      <button
-        onClick={() => setOpen(!open)}
-        className="px-2 py-1 text-xs text-white border-2 border-white rounded-full bg-transparent
-                   transition-colors cursor-pointer
-                   hover:bg-gradient-to-r hover:from-pink-500 hover:to-yellow-500
-                   hover:text-transparent hover:bg-clip-text"
-      >
-        {chainLabel}
-      </button>
-      {open && (
-        <div className="absolute mt-2 w-40 whitespace-nowrap border border-white rounded bg-black text-white z-10">
-          {chains.map((c) => (
-            <div
-              key={c.key}
-              onClick={() => {
-                onSelectChain(c.key);
-                setOpen(false);
-              }}
-              className="px-3 py-1 cursor-pointer
-                         hover:bg-gradient-to-r hover:from-pink-500 hover:to-yellow-500
-                         hover:text-transparent hover:bg-clip-text"
-            >
-              {c.label}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** 
- * 2) The RootLayout => same UI ordering, 
- *    left => Logo + Title + (chain dropdown if EVM connected) + wallet logic
- *    right => Nav menu (Home, About, etc.)
- */
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  // State: which wallet is connected? "metamask","coinbase","phantom" or null
+export default function WalletConnectLayout({ children }: { children: React.ReactNode }) {
   const [connectedWallet, setConnectedWallet] = useState<"metamask"|"coinbase"|"phantom"|null>(null);
-
-  // The actual EVM address (if EVM connected) or null
   const [evmAddress, setEvmAddress] = useState<string|null>(null);
-
-  // If user picks Solana Phantom => store that address here
   const [solanaAddress, setSolanaAddress] = useState<string|null>(null);
 
-  // For chain switching => default "ETHEREUM"
-  const [selectedChain, setSelectedChain] = useState<keyof typeof CHAINS>("ETHEREUM");
-
-  // Show/hide sub-buttons => metamask/coinbase/phantom
+  const [selectedChain, setSelectedChain] = useState<ChainKey>("ETHEREUM");
   const [showWalletButtons, setShowWalletButtons] = useState(false);
 
-  // =============== Connect Logic ===============
-
-  // (A) Connect => EVM (MetaMask) => never pick Phantom EVM
+  // =============== (A) Connect => EVM => MetaMask ===============
   async function connectMetaMask() {
     setConnectedWallet("metamask");
-    setSolanaAddress(null); // reset solana if previously connected
+    setSolanaAddress(null);
 
-    // Forcibly pick metamask if multiple providers => skip p.isPhantom
-    let chosenProvider: any = window.ethereum;
-    if (window.ethereum?.providers) {
-      const mm = window.ethereum.providers.find((p: any) => p.isMetaMask);
+    if (!window.ethereum) {
+      alert("No window.ethereum => MetaMask missing?");
+      return;
+    }
+
+    let chosenProvider = window.ethereum;
+    if (window.ethereum.providers?.length) {
+      const mm = window.ethereum.providers.find((p) => p.isMetaMask);
       if (mm) chosenProvider = mm;
     }
-    if (!chosenProvider?.isMetaMask) {
+
+    if (!chosenProvider.isMetaMask) {
       alert("MetaMask overshadowed or not found!");
       return;
     }
 
     try {
-      const provider = new ethers.BrowserProvider(chosenProvider);
+      const provider = new BrowserProvider(chosenProvider as Eip1193Provider);
+      await provider.send("eth_requestAccounts", []);
       const signer = await provider.getSigner();
-      const address = await signer.getAddress();
-      setEvmAddress(address);
+      setEvmAddress(await signer.getAddress());
     } catch (err) {
-      console.error("MetaMask connect error", err);
+      console.error("MetaMask connect error:", err);
     }
   }
 
-  // (B) Connect => EVM (Coinbase) => never pick Phantom EVM
+  // =============== (B) Connect => EVM => Coinbase ===============
   async function connectCoinbase() {
     setConnectedWallet("coinbase");
     setSolanaAddress(null);
 
-    let chosenProvider: any = window.ethereum;
-    if (window.ethereum?.providers) {
-      const cb = window.ethereum.providers.find((p: any) => p.isCoinbaseWallet);
+    if (!window.ethereum) {
+      alert("No window.ethereum => Coinbase extension missing?");
+      return;
+    }
+
+    let chosenProvider = window.ethereum;
+    if (window.ethereum.providers?.length) {
+      const cb = window.ethereum.providers.find((p) => p.isCoinbaseWallet);
       if (cb) chosenProvider = cb;
     }
-    if (!chosenProvider?.isCoinbaseWallet) {
+
+    if (!chosenProvider.isCoinbaseWallet) {
       alert("Coinbase overshadowed or not found!");
       return;
     }
 
     try {
-      const provider = new ethers.BrowserProvider(chosenProvider);
+      const provider = new BrowserProvider(chosenProvider as Eip1193Provider);
+      await provider.send("eth_requestAccounts", []);
       const signer = await provider.getSigner();
-      const address = await signer.getAddress();
-      setEvmAddress(address);
+      setEvmAddress(await signer.getAddress());
     } catch (err) {
-      console.error("Coinbase connect error", err);
+      console.error("Coinbase connect error:", err);
     }
   }
 
-  // (C) Connect => Phantom => solana only => ignore phantom EVM
+  // =============== (C) Connect => Phantom => Solana ===============
   async function connectPhantom() {
     setConnectedWallet("phantom");
-    setEvmAddress(null); // reset EVM if previously connected
+    setEvmAddress(null);
 
     if (!window.solana?.isPhantom) {
-      alert("Phantom overshadowed or not found!");
+      alert("Phantom overshadowed or not found => Solana!");
       return;
     }
     try {
       const resp = await window.solana.connect();
       setSolanaAddress(resp.publicKey.toString());
     } catch (err) {
-      console.error("Phantom connect error", err);
+      console.error("Phantom connect error:", err);
     }
   }
 
-  // =============== Disconnect ================
+  // =============== Disconnect ===============
   function disconnectWallet() {
     setConnectedWallet(null);
     setEvmAddress(null);
     setSolanaAddress(null);
   }
 
-  // =============== Switch EVM chain ===============
-  async function switchChain(chainKey: keyof typeof CHAINS) {
+  // =============== Switch EVM Chain ===============
+  async function switchChain(chainKey: ChainKey) {
     if (!evmAddress) {
-      alert("No EVM address found. Connect an EVM wallet first!");
+      alert("No EVM address => connect metamask/coinbase first!");
       return;
     }
     if (connectedWallet!=="metamask" && connectedWallet!=="coinbase") {
-      alert("Chain switching only for metamask/coinbase wallets.");
+      alert("Chain switching => metamask or coinbase only!");
       return;
     }
+
     const chainData = CHAINS[chainKey];
     if (!chainData) return;
 
     try {
-      await window.ethereum.request({
+      await window.ethereum?.request?.({
         method: "wallet_switchEthereumChain",
         params: [{ chainId: chainData.chainId }],
       });
     } catch (error: any) {
       if (error.code === 4902) {
         try {
-          await window.ethereum.request({
+          await window.ethereum?.request?.({
             method: "wallet_addEthereumChain",
             params: [
               {
@@ -226,19 +176,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     }
   }
 
-  // Figure out which address to display => EVM or solana
+  // =============== aggregator => truncated display address ===============
   let displayAddress: string | null = null;
-  if (connectedWallet==="metamask" || connectedWallet==="coinbase") {
+  if (connectedWallet === "metamask" || connectedWallet === "coinbase") {
     if (evmAddress) {
-      displayAddress = evmAddress.slice(0,5)+"..."+evmAddress.slice(-4);
+      displayAddress = evmAddress.slice(0, 5) + "..." + evmAddress.slice(-4);
     }
-  } else if (connectedWallet==="phantom") {
+  } else if (connectedWallet === "phantom") {
     if (solanaAddress) {
-      displayAddress = solanaAddress.slice(0,5)+"..."+solanaAddress.slice(-4);
+      displayAddress = solanaAddress.slice(0, 5) + "..." + solanaAddress.slice(-4);
     }
   }
 
-  // Pink→yellow gradient on hover => for "Connect Wallet" button
+  // Pink→yellow gradient for "Connect Wallet" button
   const sharedHoverGradient = `
     px-2 py-1
     text-xs
@@ -259,11 +209,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className={`min-h-screen text-xs bg-black ${pressStart2P.className}`}>
-
-        {/* 
-          EXACT same layout => left = brand + chain + "Connect or address"
-          right = nav
-        */}
         <header className="p-2 bg-black border-b border-neutral-800">
           <nav className="container mx-auto flex items-center justify-between">
             
@@ -276,32 +221,30 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   width={36}
                   height={36}
                 />
-                <span className="text-xs font-bold">KRBYLAND</span>
               </Link>
 
+              {/* If user is EVM => show chain dropdown (below) */}
               {connectedWallet!=="phantom" && evmAddress && (
                 <ChainDropdown
                   chains={Object.keys(CHAINS).map((k) => ({
                     key: k,
-                    label: CHAINS[k as keyof typeof CHAINS].label
+                    label: CHAINS[k as ChainKey].label
                   }))}
                   selectedChain={selectedChain}
                   onSelectChain={(k: string) => {
-                    setSelectedChain(k as keyof typeof CHAINS);
-                    switchChain(k as keyof typeof CHAINS);
+                    setSelectedChain(k as ChainKey);
+                    switchChain(k as ChainKey);
                   }}
                 />
               )}
 
-              {/* If connected => show address + Disconnect. Else show "Connect" => sub buttons */}
+              {/* If connected => show address + Disconnect. Else => “Connect” => sub‐buttons */}
               <div className="ml-2">
                 {displayAddress ? (
                   <div className="flex items-center gap-2">
-                    {/* Show truncated address in a button or span */}
                     <button className={sharedHoverGradient}>
                       {displayAddress}
                     </button>
-                    {/* New "Disconnect" button => sets connectedWallet to null */}
                     <button onClick={disconnectWallet} className={sharedHoverGradient}>
                       Disconnect
                     </button>
@@ -316,7 +259,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 )}
               </div>
 
-              {/* The row of 3 sub-buttons => metamask, coinbase, phantom => only if not connected */}
+              {/* sub-buttons => metamask, coinbase, phantom => only if not connected */}
               {!displayAddress && showWalletButtons && (
                 <div className="ml-2 flex items-center space-x-2">
                   <button onClick={connectMetaMask} className={sharedHoverGradient}>
@@ -332,7 +275,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               )}
             </div>
 
-            {/* RIGHT side => nav menu => exactly the same as your code */}
+            {/* RIGHT side => nav menu */}
             <ul className="flex gap-2">
               <li>
                 <Link
@@ -383,5 +326,55 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </main>
       </body>
     </html>
+  );
+}
+
+/**
+ * 2) ChainDropdown => Now we keep it in the SAME "use client" file
+ *    so we don't pass function props across a server boundary.
+ */
+function ChainDropdown({
+  chains,
+  selectedChain,
+  onSelectChain,
+}: {
+  chains: { key: string; label: string }[];
+  selectedChain: string;
+  onSelectChain: (key: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const chainLabel = chains.find((c) => c.key === selectedChain)?.label || "Select Chain";
+
+  return (
+    <div className="relative inline-block ml-2">
+      <button
+        onClick={() => setOpen(!open)}
+        className="px-2 py-1 text-xs text-white border-2 border-white rounded-full bg-transparent
+                   transition-colors cursor-pointer
+                   hover:bg-gradient-to-r hover:from-pink-500 hover:to-yellow-500
+                   hover:text-transparent hover:bg-clip-text"
+      >
+        {chainLabel}
+      </button>
+      {open && (
+        <div className="absolute mt-2 w-40 whitespace-nowrap border border-white rounded bg-black text-white z-10">
+          {chains.map((c) => (
+            <div
+              key={c.key}
+              onClick={() => {
+                onSelectChain(c.key);
+                setOpen(false);
+              }}
+              className="px-3 py-1 cursor-pointer
+                         hover:bg-gradient-to-r hover:from-pink-500 hover:to-yellow-500
+                         hover:text-transparent hover:bg-clip-text"
+            >
+              {c.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

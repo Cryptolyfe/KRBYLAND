@@ -1,27 +1,58 @@
 {
   "compilerOptions": {
+    // ESNext + DOM libraries are typical for Next.js 13
     "target": "ES2017",
     "lib": ["dom", "dom.iterable", "esnext"],
+
+    // Allow JS in case you have legacy JavaScript files
     "allowJs": true,
-    "skipLibCheck": true,
+
+    // If you prefer super strict type-checking, keep "strict": true
     "strict": true,
+
+    // "skipLibCheck": true can reduce friction from 3rd-party types,
+    // but you can set this to false if you want stricter checks in node_modules
+    "skipLibCheck": true,
+
+    // Next.js typically doesn't emit separate build files in dev
     "noEmit": true,
+
     "esModuleInterop": true,
+
+    // The new standard for Next.js 13 or bundler-based frameworks
     "module": "esnext",
     "moduleResolution": "bundler",
+
+    // Required for JSON imports, if any
     "resolveJsonModule": true,
+
+    // Ensures each file is treated as a separate module
     "isolatedModules": true,
+
+    // Next.js default for TSX
     "jsx": "preserve",
+
+    // Speeds up incremental builds
     "incremental": true,
+
+    // Next.js plugin for better IntelliSense
     "plugins": [
       {
         "name": "next"
       }
     ],
+
+    // Path alias for "src/*"
     "paths": {
       "@/*": ["./src/*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.d.ts",  // Ensures your global.d.ts is included
+    ".next/types/**/*.ts"
+  ],
   "exclude": ["node_modules"]
 }
