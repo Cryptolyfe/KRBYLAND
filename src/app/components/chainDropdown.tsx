@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from "react";
@@ -16,12 +17,10 @@ interface ChainDropdownProps {
 export default function ChainDropdown({ chains, selected, onSelect }: ChainDropdownProps) {
   const [open, setOpen] = useState(false);
 
-  // find the chainName from 'chains' array for the 'selected' key
   const selectedChainName = chains.find((c) => c.key === selected)?.chainName || "Select Chain";
 
   return (
     <div className="relative inline-block">
-      {/* Dropdown toggle => looks like a button */}
       <button
         onClick={() => setOpen(!open)}
         className={`
@@ -43,7 +42,6 @@ export default function ChainDropdown({ chains, selected, onSelect }: ChainDropd
         {selectedChainName}
       </button>
 
-      {/* The actual menu => shown if open is true */}
       {open && (
         <div className="absolute mt-2 w-40 border border-white rounded bg-black text-white z-10">
           {chains.map((chain) => (
@@ -51,9 +49,11 @@ export default function ChainDropdown({ chains, selected, onSelect }: ChainDropd
               key={chain.key}
               onClick={() => {
                 onSelect(chain.key);
-                setOpen(false); // close dropdown
+                setOpen(false);
               }}
-              className="px-3 py-1 cursor-pointer hover:bg-gradient-to-r hover:from-pink-500 hover:to-yellow-500 hover:text-transparent hover:bg-clip-text"
+              className="px-3 py-1 cursor-pointer
+                         hover:bg-gradient-to-r hover:from-pink-500 hover:to-yellow-500
+                         hover:text-transparent hover:bg-clip-text"
             >
               {chain.chainName}
             </div>

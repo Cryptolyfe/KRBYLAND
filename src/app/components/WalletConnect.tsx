@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
-import { ethers, Eip1193Provider, BrowserProvider } from "ethers";
+import React, { useState, useCallback } from "react";
+import { Eip1193Provider, BrowserProvider } from "ethers";
 import "./globals.css";
 import Image from "next/image";
 import Link from "next/link";
 import { Press_Start_2P } from "next/font/google";
+import ChainDropdown from "./chainDropdown"; // Adjust the path if needed
 
 const pressStart2P = Press_Start_2P({
   subsets: ["latin"],
@@ -35,22 +36,23 @@ const CHAINS = {
 
 type ChainKey = keyof typeof CHAINS;
 
-/**
- * 1) The RootLayout => brand + aggregator
- *    Because this file is `"use client"`, we can pass function props freely inside it.
+/** 
+ * Phantom network types; note that we're keeping SUI in the union for now,
+ * even though we may not use it.
  */
-export default function WalletConnectLayout({ children }: { children: React.ReactNode }) {
-  const [connectedWallet, setConnectedWallet] = useState<"metamask"|"coinbase"|"phantom"|null>(null);
-  const [evmAddress, setEvmAddress] = useState<string|null>(null);
-  const [solanaAddress, setSolanaAddress] = useState<string|null>(null);
+type PhantomNetworkKey = "SOLANA" | "SUI";
 
+export default function WalletConnectLayout({ children }: { children: React.ReactNode }) {
+  const [connectedWallet, setConnectedWallet] = useState<"metamask" | "coinbase" | "phantom" | null>(null);
+  const [evmAddress, setEvmAddress] = useState<string | null>(null);
+  const [solanaAddress, setSolanaAddress] = useState<string | null>(null);
   const [selectedChain, setSelectedChain] = useState<ChainKey>("ETHEREUM");
   const [showWalletButtons, setShowWalletButtons] = useState(false);
 
-  // =============== (A) Connect => EVM => MetaMask ===============
+  // ============== CONNECT => METAMASK ==============
   async function connectMetaMask() {
     setConnectedWallet("metamask");
-    setSolanaAddress(null);
+    setEvmAddress(null);
 
     if (!window.ethereum) {
       alert("No window.ethereum => MetaMask missing?");
@@ -63,7 +65,7 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
       if (mm) chosenProvider = mm;
     }
 
-    if (!chosenProvider.isMetaMask) {
+    if (!chosenProvider?.isMetaMask) {
       alert("MetaMask overshadowed or not found!");
       return;
     }
@@ -73,15 +75,15 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
       await provider.send("eth_requestAccounts", []);
       const signer = await provider.getSigner();
       setEvmAddress(await signer.getAddress());
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("MetaMask connect error:", err);
     }
   }
 
-  // =============== (B) Connect => EVM => Coinbase ===============
+  // ============== CONNECT => COINBASE ==============
   async function connectCoinbase() {
     setConnectedWallet("coinbase");
-    setSolanaAddress(null);
+    setEvmAddress(null);
 
     if (!window.ethereum) {
       alert("No window.ethereum => Coinbase extension missing?");
@@ -94,7 +96,7 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
       if (cb) chosenProvider = cb;
     }
 
-    if (!chosenProvider.isCoinbaseWallet) {
+    if (!chosenProvider?.isCoinbaseWallet) {
       alert("Coinbase overshadowed or not found!");
       return;
     }
@@ -104,12 +106,12 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
       await provider.send("eth_requestAccounts", []);
       const signer = await provider.getSigner();
       setEvmAddress(await signer.getAddress());
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Coinbase connect error:", err);
     }
   }
 
-  // =============== (C) Connect => Phantom => Solana ===============
+  // ============== CONNECT => PHANTOM => SOLANA ==============
   async function connectPhantom() {
     setConnectedWallet("phantom");
     setEvmAddress(null);
@@ -121,25 +123,25 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
     try {
       const resp = await window.solana.connect();
       setSolanaAddress(resp.publicKey.toString());
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Phantom connect error:", err);
     }
   }
 
-  // =============== Disconnect ===============
+  // ============== Disconnect ==============
   function disconnectWallet() {
     setConnectedWallet(null);
     setEvmAddress(null);
     setSolanaAddress(null);
   }
 
-  // =============== Switch EVM Chain ===============
+  // ============== SWITCH EVM CHAIN ==============
   async function switchChain(chainKey: ChainKey) {
     if (!evmAddress) {
       alert("No EVM address => connect metamask/coinbase first!");
       return;
     }
-    if (connectedWallet!=="metamask" && connectedWallet!=="coinbase") {
+    if (connectedWallet !== "metamask" && connectedWallet !== "coinbase") {
       alert("Chain switching => metamask or coinbase only!");
       return;
     }
@@ -152,8 +154,8 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
         method: "wallet_switchEthereumChain",
         params: [{ chainId: chainData.chainId }],
       });
-    } catch (error: any) {
-      if (error.code === 4902) {
+    } catch (error: unknown) {
+      if (error instanceof Error && (error as any).code === 4902) {
         try {
           await window.ethereum?.request?.({
             method: "wallet_addEthereumChain",
@@ -176,7 +178,7 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
     }
   }
 
-  // =============== aggregator => truncated display address ===============
+  // ============== aggregator => truncated display address ==============
   let displayAddress: string | null = null;
   if (connectedWallet === "metamask" || connectedWallet === "coinbase") {
     if (evmAddress) {
@@ -188,7 +190,12 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
     }
   }
 
-  // Pink→yellow gradient for "Connect Wallet" button
+  // Wrap the onSelect function with useCallback for stability
+  const handleSelectChain = useCallback((key: string) => {
+    setSelectedChain(key as ChainKey);
+    switchChain(key as ChainKey);
+  }, [setSelectedChain, switchChain, evmAddress, connectedWallet]);
+
   const sharedHoverGradient = `
     px-2 py-1
     text-xs
@@ -211,7 +218,6 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
       <body className={`min-h-screen text-xs bg-black ${pressStart2P.className}`}>
         <header className="p-2 bg-black border-b border-neutral-800">
           <nav className="container mx-auto flex items-center justify-between">
-            
             {/* LEFT side => brand, chain dropdown, connect/disconnect */}
             <div className="flex items-center">
               <Link href="/" className="flex items-center space-x-2">
@@ -223,22 +229,19 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
                 />
               </Link>
 
-              {/* If user is EVM => show chain dropdown (below) */}
-              {connectedWallet!=="phantom" && evmAddress && (
+              {/* If user is EVM => show chain dropdown */}
+              {connectedWallet !== "phantom" && evmAddress && (
                 <ChainDropdown
                   chains={Object.keys(CHAINS).map((k) => ({
                     key: k,
-                    label: CHAINS[k as ChainKey].label
+                    chainName: CHAINS[k as ChainKey].label,
                   }))}
-                  selectedChain={selectedChain}
-                  onSelectChain={(k: string) => {
-                    setSelectedChain(k as ChainKey);
-                    switchChain(k as ChainKey);
-                  }}
+                  selected={selectedChain}
+                  onSelect={handleSelectChain}
                 />
               )}
 
-              {/* If connected => show address + Disconnect. Else => “Connect” => sub‐buttons */}
+              {/* If connected, show address + Disconnect. Else, show "Connect" */}
               <div className="ml-2">
                 {displayAddress ? (
                   <div className="flex items-center gap-2">
@@ -259,7 +262,7 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
                 )}
               </div>
 
-              {/* sub-buttons => metamask, coinbase, phantom => only if not connected */}
+              {/* Sub-buttons if not connected */}
               {!displayAddress && showWalletButtons && (
                 <div className="ml-2 flex items-center space-x-2">
                   <button onClick={connectMetaMask} className={sharedHoverGradient}>
@@ -321,60 +324,8 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
           </nav>
         </header>
 
-        <main className="container mx-auto px-4 py-4">
-          {children}
-        </main>
+        <main className="container mx-auto px-4 py-4">{children}</main>
       </body>
     </html>
-  );
-}
-
-/**
- * 2) ChainDropdown => Now we keep it in the SAME "use client" file
- *    so we don't pass function props across a server boundary.
- */
-function ChainDropdown({
-  chains,
-  selectedChain,
-  onSelectChain,
-}: {
-  chains: { key: string; label: string }[];
-  selectedChain: string;
-  onSelectChain: (key: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-
-  const chainLabel = chains.find((c) => c.key === selectedChain)?.label || "Select Chain";
-
-  return (
-    <div className="relative inline-block ml-2">
-      <button
-        onClick={() => setOpen(!open)}
-        className="px-2 py-1 text-xs text-white border-2 border-white rounded-full bg-transparent
-                   transition-colors cursor-pointer
-                   hover:bg-gradient-to-r hover:from-pink-500 hover:to-yellow-500
-                   hover:text-transparent hover:bg-clip-text"
-      >
-        {chainLabel}
-      </button>
-      {open && (
-        <div className="absolute mt-2 w-40 whitespace-nowrap border border-white rounded bg-black text-white z-10">
-          {chains.map((c) => (
-            <div
-              key={c.key}
-              onClick={() => {
-                onSelectChain(c.key);
-                setOpen(false);
-              }}
-              className="px-3 py-1 cursor-pointer
-                         hover:bg-gradient-to-r hover:from-pink-500 hover:to-yellow-500
-                         hover:text-transparent hover:bg-clip-text"
-            >
-              {c.label}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
   );
 }
