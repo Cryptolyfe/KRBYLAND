@@ -4,7 +4,7 @@ Welcome to **KRBYLAND** – where retro meets radical in a neon-drenched digital
 
 ## KRBYLAND: Gig From Anywhere!
 
-  - **KRBYLAND revolutionizes live performances for musicians and DJs:** 
+  - **KRBYLAND revolutionizes live performances for musicians and DJs:** <br>
   Whether you're rocking a virtual nightclub as a fully customizable avatar or streaming your set on top video platforms, our platform enables you to gig from anywhere. Experience a new monetization stream through crypto tips, point systems, and seamless payments—all designed to empower your creative journey.
 
 - **Seamless Wallet Integration:**  
