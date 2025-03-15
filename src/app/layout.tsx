@@ -1,14 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ethers } from "ethers";
+import { ethers, Eip1193Provider } from "ethers";
 import "./globals.css";
 import Image from "next/image";
 import Link from "next/link";
 import { Press_Start_2P } from "next/font/google";
 
-/** 
- * 1) Retro font => Press_Start_2P => same as before
+/**
+ * 1) Retro font => Press_Start_2P
  */
 const pressStart2P = Press_Start_2P({
   subsets: ["latin"],
@@ -16,8 +16,8 @@ const pressStart2P = Press_Start_2P({
   display: "swap",
 });
 
-/** 
- * 2) EVM chain configs => Ethereum, Polygon, Arbitrum, Avalanche, Base
+/**
+ * 2) EVM chain configs => Ethereum, Polygon, Arbitrum, Avalanche, Base, Optimism
  */
 const EVM_CHAINS = {
   ETHEREUM: {
@@ -60,63 +60,68 @@ const EVM_CHAINS = {
     rpcUrls: ["https://mainnet.base.org"],
     blockExplorerUrls: ["https://explorer.base.org"],
   },
+  OPTIMISM: {
+    label: "Optimism",
+    chainId: "0xa",
+    chainName: "Optimism Mainnet",
+    nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+    rpcUrls: ["https://mainnet.optimism.io"],
+    blockExplorerUrls: ["https://optimistic.etherscan.io"],
+  },
 } as const;
+
 type EvmChainKey = keyof typeof EVM_CHAINS;
 
 /** 
  * 3) Phantom network => "SOLANA" or "SUI"
+ *    We'll keep "SUI" in the union, but won't ever use it below.
  */
-type PhantomNetworkKey = "SOLANA" | "SUI";
+type PhantomNetworkKey = "SOLANA" | "SUI"; 
 
-/**
- * 4) RootLayout => single aggregator with brand+nav on left, aggregator on right
- */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   // SSR skip => “ready” approach
   const [ready, setReady] = useState(false);
   useEffect(() => setReady(true), []);
 
-  // connected wallet => metamask, coinbase, phantom
   const [connectedWallet, setConnectedWallet] = useState<"metamask"|"coinbase"|"phantom"|null>(null);
-
-  // EVM => metamask/coinbase address
   const [evmAddress, setEvmAddress] = useState<string|null>(null);
 
   // Phantom => which "network"? => solana or sui
   const [phantomNetwork, setPhantomNetwork] = useState<PhantomNetworkKey|null>(null);
-  // store addresses for each
   const [solanaAddress, setSolanaAddress] = useState<string|null>(null);
-  const [suiAddress, setSuiAddress] = useState<string|null>(null);
 
-  // EVM chain => default "ETHEREUM"
+  // Comment out the SUI address if you're not supporting it
+  // const [suiAddress, setSuiAddress] = useState<string|null>(null);
+
   const [selectedEvmChain, setSelectedEvmChain] = useState<EvmChainKey>("ETHEREUM");
-
-  // show sub‐buttons => metamask, coinbase, phantom
   const [showWalletButtons, setShowWalletButtons] = useState(false);
 
-  // ============= EVM Connect => metamask =============
+  // ============== CONNECT => METAMASK ==============
   async function connectMetaMask() {
     setConnectedWallet("metamask");
     setEvmAddress(null);
     setPhantomNetwork(null);
     setSolanaAddress(null);
-    setSuiAddress(null);
+    // setSuiAddress(null);
 
     if (!window.ethereum) {
-      alert("No window.ethereum => metamask missing?");
+      alert("No window.ethereum => MetaMask missing?");
       return;
     }
-    let chosenProvider: any = window.ethereum;
-    if (window.ethereum.providers) {
-      const mm = window.ethereum.providers.find((p: any) => p.isMetaMask);
+
+    let chosenProvider = window.ethereum;
+    if (window.ethereum.providers && window.ethereum.providers.length > 0) {
+      const mm = window.ethereum.providers.find((p) => p.isMetaMask);
       if (mm) chosenProvider = mm;
     }
+
     if (!chosenProvider?.isMetaMask) {
       alert("MetaMask overshadowed or not found!");
       return;
     }
+
     try {
-      const provider = new ethers.BrowserProvider(chosenProvider);
+      const provider = new ethers.BrowserProvider(chosenProvider as Eip1193Provider);
       await provider.send("eth_requestAccounts", []);
       const signer = await provider.getSigner();
       setEvmAddress(await signer.getAddress());
@@ -125,29 +130,32 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     }
   }
 
-  // ============= EVM Connect => coinbase =============
+  // ============== CONNECT => COINBASE ==============
   async function connectCoinbase() {
     setConnectedWallet("coinbase");
     setEvmAddress(null);
     setPhantomNetwork(null);
     setSolanaAddress(null);
-    setSuiAddress(null);
+    // setSuiAddress(null);
 
     if (!window.ethereum) {
-      alert("No window.ethereum => coinbase extension missing?");
+      alert("No window.ethereum => Coinbase extension missing?");
       return;
     }
-    let chosenProvider: any = window.ethereum;
-    if (window.ethereum.providers) {
-      const cb = window.ethereum.providers.find((p: any) => p.isCoinbaseWallet);
+
+    let chosenProvider = window.ethereum;
+    if (window.ethereum.providers && window.ethereum.providers.length > 0) {
+      const cb = window.ethereum.providers.find((p) => p.isCoinbaseWallet);
       if (cb) chosenProvider = cb;
     }
+
     if (!chosenProvider?.isCoinbaseWallet) {
       alert("Coinbase overshadowed or not found!");
       return;
     }
+
     try {
-      const provider = new ethers.BrowserProvider(chosenProvider);
+      const provider = new ethers.BrowserProvider(chosenProvider as Eip1193Provider);
       await provider.send("eth_requestAccounts", []);
       const signer = await provider.getSigner();
       setEvmAddress(await signer.getAddress());
@@ -156,17 +164,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     }
   }
 
-  // ============= Phantom => always connect to SOLANA by default =============
+  // ============== CONNECT => PHANTOM => SOLANA ==============
   async function connectPhantom() {
     setConnectedWallet("phantom");
     setEvmAddress(null);
     setPhantomNetwork(null);
     setSolanaAddress(null);
-    setSuiAddress(null);
+    // setSuiAddress(null);
 
-    // Immediately try connecting to SOLANA
     if (!window.solana?.isPhantom) {
-      alert("Phantom overshadowed or not found => solana!");
+      alert("Phantom overshadowed or not found => Solana!");
       return;
     }
     try {
@@ -178,64 +185,51 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     }
   }
 
-  // Then if user picks "SUI" in the phantom dropdown, we do this:
-  async function switchPhantomToSui() {
-    if (!window.phantom?.sui) {
-      alert("Phantom overshadowed or not found => SUI!");
-      return;
-    }
-    try {
-      // Real code may differ
-      const resp = await window.phantom.sui.connect();
-      setSuiAddress(resp.address);
-      setPhantomNetwork("SUI");
-      // clear solana address so we don't show the old one
-      setSolanaAddress(null);
-    } catch (err) {
-      console.error("Phantom(Sui) connect error =>", err);
-    }
-  }
+  // ============== SWITCH PHANTOM => SUI (COMMENT OUT) ==============
+  // async function switchPhantomToSui() {
+  //   alert("Phantom Sui is not supported yet!");
+  //   // If you actually had code calling window.phantom.sui, remove or comment it out.
+  // }
 
-  // If user picks "Solana" in the phantom dropdown *after* picking Sui, we do:
+  // ============== SWITCH PHANTOM => SOLANA ==============
   async function switchPhantomToSolana() {
     if (!window.solana?.isPhantom) {
-      alert("Phantom overshadowed or not found => solana!");
+      alert("Phantom overshadowed or not found => Solana!");
       return;
     }
     try {
       const resp = await window.solana.connect();
       setSolanaAddress(resp.publicKey.toString());
       setPhantomNetwork("SOLANA");
-      // clear sui address so we don't show the old one
-      setSuiAddress(null);
+      // setSuiAddress(null);
     } catch (err) {
       console.error("Phantom(Solana) connect error =>", err);
     }
   }
 
-  // ============= Switch EVM chain => metamask/coinbase only =============
+  // ============== SWITCH EVM CHAIN ==============
   async function switchEvmChain(chainKey: EvmChainKey) {
     if (!evmAddress) {
       alert("No EVM address => connect metamask/coinbase first!");
       return;
     }
-    if (connectedWallet!=="metamask" && connectedWallet!=="coinbase") {
+    if (connectedWallet !== "metamask" && connectedWallet !== "coinbase") {
       alert("EVM chain switching => metamask or coinbase only!");
       return;
     }
+
     const chainData = EVM_CHAINS[chainKey];
     if (!chainData) return;
 
     try {
-      await window.ethereum.request({
+      await window.ethereum?.request?.({
         method: "wallet_switchEthereumChain",
         params: [{ chainId: chainData.chainId }],
       });
-    } catch (error: any) {
-      if (error.code === 4902) {
-        // chain not added => attempt add
+    } catch (error: unknown) {
+      if (error instanceof Error && (error as any).code === 4902) {
         try {
-          await window.ethereum.request({
+          await window.ethereum?.request?.({
             method: "wallet_addEthereumChain",
             params: [
               {
@@ -256,30 +250,30 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     }
   }
 
-  // ============= aggregator => truncated address =============
-  let displayAddress: string|null = null;
-  if (connectedWallet==="metamask" || connectedWallet==="coinbase") {
+  // ============== aggregator => truncated address ==============
+  let displayAddress: string | null = null;
+  if (connectedWallet === "metamask" || connectedWallet === "coinbase") {
     if (evmAddress) {
-      displayAddress = evmAddress.slice(0,5)+"..."+evmAddress.slice(-4);
+      displayAddress = evmAddress.slice(0, 5) + "..." + evmAddress.slice(-4);
     }
-  } else if (connectedWallet==="phantom") {
-    if (phantomNetwork==="SOLANA" && solanaAddress) {
-      displayAddress = solanaAddress.slice(0,5)+"..."+solanaAddress.slice(-4);
-    } else if (phantomNetwork==="SUI" && suiAddress) {
-      displayAddress = suiAddress.slice(0,5)+"..."+suiAddress.slice(-4);
+  } else if (connectedWallet === "phantom") {
+    if (phantomNetwork === "SOLANA" && solanaAddress) {
+      displayAddress = solanaAddress.slice(0, 5) + "..." + solanaAddress.slice(-4);
     }
+    // else if (phantomNetwork === "SUI" && suiAddress) {
+    //   displayAddress = suiAddress.slice(0, 5) + "..." + suiAddress.slice(-4);
+    // }
   }
 
-  // ============= aggregator => disconnect =============
+  // ============== aggregator => disconnect ==============
   function disconnectWallet() {
     setConnectedWallet(null);
     setEvmAddress(null);
     setPhantomNetwork(null);
     setSolanaAddress(null);
-    setSuiAddress(null);
+    // setSuiAddress(null);
   }
 
-  // shared style => text-xs => pink→yellow gradient on hover
   const sharedHoverGradient = `
     px-2 py-1
     text-xs
@@ -298,40 +292,33 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   `;
 
   if (!ready) {
-    // SSR fallback => no aggregator
     return (
       <html lang="en">
         <body className={`min-h-screen text-xs bg-black ${pressStart2P.className}`}>
           <div className="p-4 text-white text-center">Loading aggregator...</div>
-          <main className="container mx-auto px-4 py-4">
-            {children}
-          </main>
+          <main className="container mx-auto px-4 py-4">{children}</main>
         </body>
       </html>
     );
   }
 
-  // final aggregator once client is mounted
   return (
     <html lang="en">
       <body className={`min-h-screen text-xs bg-black ${pressStart2P.className}`}>
-        
         <header className="p-2 bg-black border-b border-neutral-800">
           <nav className="container mx-auto flex items-center justify-between">
             
-            {/* LEFT => brand + nav => text-[10px] => near each other => gap-4 */}
+            {/* LEFT => brand + nav */}
             <div className="flex items-center gap-4">
-              {/* Brand => KRBYLAND */}
               <Link href="/" className="flex items-center space-x-2">
                 <Image
-                  src="/images/krbyland_logo.png"
+                  src="/images/KRBYLAND.png"
                   alt="KRBYLAND Logo"
                   width={36}
                   height={36}
                 />
               </Link>
-
-              {/* Nav => text-[10px], small */}
+              {/* Nav */}
               <ul className="flex gap-2 text-[10px]">
                 <li>
                   <Link
@@ -378,11 +365,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
             {/* RIGHT => aggregator => chain or phantom net => address => disconnect */}
             <div className="flex items-center gap-2">
-              
               {displayAddress ? (
                 <>
-                  {/** If metamask or coinbase => EVM chain dropdown */}
-                  {(connectedWallet==="metamask" || connectedWallet==="coinbase") && evmAddress && (
+                  {/* EVM chain dropdown if metamask or coinbase */}
+                  {connectedWallet !== "phantom" && evmAddress && (
                     <EvmChainDropdown
                       chainKey={selectedEvmChain}
                       onSwitch={(ck) => {
@@ -392,16 +378,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     />
                   )}
 
-                  {/** If phantom => show a phantom net dropdown => Solana / Sui */}
-                  {connectedWallet==="phantom" && (
+                  {/* Phantom net dropdown if phantom */}
+                  {connectedWallet === "phantom" && (
                     <PhantomNetworkDropdown
                       current={phantomNetwork}
                       switchToSolana={switchPhantomToSolana}
-                      switchToSui={switchPhantomToSui}
+                      // switchToSui={switchPhantomToSui} // commented out
                     />
                   )}
 
-                  {/* truncated address + Disconnect */}
                   <button className={sharedHoverGradient}>
                     {displayAddress}
                   </button>
@@ -411,7 +396,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </>
               ) : (
                 <>
-                  {/* If not connected => single “Connect Wallet” => shows sub‐buttons */}
                   <button
                     onClick={() => setShowWalletButtons(!showWalletButtons)}
                     className={sharedHoverGradient}
@@ -438,16 +422,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </nav>
         </header>
 
-        <main className="container mx-auto px-4 py-4">
-          {children}
-        </main>
+        <main className="container mx-auto px-4 py-4">{children}</main>
       </body>
     </html>
   );
 }
 
-/** 
- * EvmChainDropdown => same as before => “Ethereum / Polygon / …”
+/**
+ * EvmChainDropdown => “Ethereum / Polygon / …”
  */
 function EvmChainDropdown({
   chainKey,
@@ -496,27 +478,25 @@ function EvmChainDropdown({
   );
 }
 
-/** 
- * PhantomNetworkDropdown => pick “Solana” or “Sui”
- * We actually do the “connectPhantomSolana()” or “connectPhantomSui()” calls 
- * in the aggregator => we pass them in as props
+/**
+ * PhantomNetworkDropdown => pick “Solana” ~~or “Sui”~~
+ *    we comment out anything referencing "SUI"
  */
 function PhantomNetworkDropdown({
   current,
   switchToSolana,
-  switchToSui,
+  // switchToSui,
 }: {
-  current: PhantomNetworkKey|null;
+  current: PhantomNetworkKey | null;
   switchToSolana: () => Promise<void>;
-  switchToSui: () => Promise<void>;
+  // switchToSui: () => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
 
-  // if user connected => show “Phantom Solana” or “Phantom Sui”
-  // else => “Phantom?”
+  // We'll pretend only SOLANA is valid now
   let label = "Phantom?";
-  if (current==="SOLANA") label = "Solana";
-  if (current==="SUI") label = "Sui";
+  if (current === "SOLANA") label = "Solana";
+  // if (current === "SUI") label = "Sui";
 
   return (
     <div className="relative inline-block">
@@ -546,7 +526,7 @@ function PhantomNetworkDropdown({
           >
             Solana
           </div>
-          <div
+          {/* <div
             onClick={() => {
               switchToSui();
               setOpen(false);
@@ -558,7 +538,7 @@ function PhantomNetworkDropdown({
             "
           >
             Sui
-          </div>
+          </div> */}
         </div>
       )}
     </div>
