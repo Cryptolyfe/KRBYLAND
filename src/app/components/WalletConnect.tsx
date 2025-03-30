@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Eip1193Provider, BrowserProvider } from "ethers";
-import "./globals.css";
+import "../globals.css";
 import Image from "next/image";
 import Link from "next/link";
 import { Press_Start_2P } from "next/font/google";
-import ChainDropdown from "./chainDropdown"; // Adjust the path if needed
+import ChainDropdown from "./chainDropdown";
 
 const pressStart2P = Press_Start_2P({
   subsets: ["latin"],
@@ -31,25 +31,26 @@ const CHAINS = {
     rpcUrls: ["https://polygon-rpc.com"],
     blockExplorerUrls: ["https://polygonscan.com"],
   },
-  // ... add more as needed
+  // etc...
 } as const;
 
 type ChainKey = keyof typeof CHAINS;
-
-/** 
- * Phantom network types; note that we're keeping SUI in the union for now,
- * even though we may not use it.
- */
 type PhantomNetworkKey = "SOLANA" | "SUI";
 
-export default function WalletConnectLayout({ children }: { children: React.ReactNode }) {
-  const [connectedWallet, setConnectedWallet] = useState<"metamask" | "coinbase" | "phantom" | null>(null);
+export default function WalletConnectLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  // ===================== STATE =====================
+  const [connectedWallet, setConnectedWallet] =
+    useState<"metamask" | "coinbase" | "phantom" | null>(null);
   const [evmAddress, setEvmAddress] = useState<string | null>(null);
   const [solanaAddress, setSolanaAddress] = useState<string | null>(null);
   const [selectedChain, setSelectedChain] = useState<ChainKey>("ETHEREUM");
   const [showWalletButtons, setShowWalletButtons] = useState(false);
 
-  // ============== CONNECT => METAMASK ==============
+  // ===================== CONNECT: METAMASK =====================
   async function connectMetaMask() {
     setConnectedWallet("metamask");
     setEvmAddress(null);
@@ -58,13 +59,11 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
       alert("No window.ethereum => MetaMask missing?");
       return;
     }
-
     let chosenProvider = window.ethereum;
     if (window.ethereum.providers?.length) {
-      const mm = window.ethereum.providers.find((p) => p.isMetaMask);
+      const mm = window.ethereum.providers.find((p: any) => p.isMetaMask);
       if (mm) chosenProvider = mm;
     }
-
     if (!chosenProvider?.isMetaMask) {
       alert("MetaMask overshadowed or not found!");
       return;
@@ -75,48 +74,41 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
       await provider.send("eth_requestAccounts", []);
       const signer = await provider.getSigner();
       setEvmAddress(await signer.getAddress());
-    } catch (err: unknown) {
+    } catch (err) {
       console.error("MetaMask connect error:", err);
     }
   }
 
-  // ============== CONNECT => COINBASE ==============
+  // ===================== CONNECT: COINBASE =====================
   async function connectCoinbase() {
     setConnectedWallet("coinbase");
     setEvmAddress(null);
-  
-    const { ethereum } = window as any;
-  
-    if (!ethereum) {
-      alert("Coinbase Wallet extension is not installed.");
+
+    if (!window.ethereum) {
+      alert("No window.ethereum => Coinbase extension missing?");
       return;
     }
-  
-    let chosenProvider = ethereum;
-  
-    // Coinbase Wallet injected provider detection logic:
-    if (ethereum.providers?.length) {
-      chosenProvider = ethereum.providers.find((provider: any) => provider.isCoinbaseWallet);
+    let chosenProvider = window.ethereum;
+    if (window.ethereum.providers?.length) {
+      const cb = window.ethereum.providers.find((p: any) => p.isCoinbaseWallet);
+      if (cb) chosenProvider = cb;
     }
-  
     if (!chosenProvider?.isCoinbaseWallet) {
-      alert("Coinbase Wallet is either overshadowed by another wallet or not found. Please ensure it's installed and enabled.");
+      alert("Coinbase overshadowed or not found!");
       return;
     }
-  
+
     try {
       const provider = new BrowserProvider(chosenProvider as Eip1193Provider);
       await provider.send("eth_requestAccounts", []);
       const signer = await provider.getSigner();
-      const address = await signer.getAddress();
-      setEvmAddress(address);
-    } catch (err: unknown) {
+      setEvmAddress(await signer.getAddress());
+    } catch (err) {
       console.error("Coinbase connect error:", err);
     }
   }
-  
 
-  // ============== CONNECT => PHANTOM => SOLANA ==============
+  // ===================== CONNECT: PHANTOM (SOLANA) =====================
   async function connectPhantom() {
     setConnectedWallet("phantom");
     setEvmAddress(null);
@@ -128,26 +120,26 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
     try {
       const resp = await window.solana.connect();
       setSolanaAddress(resp.publicKey.toString());
-    } catch (err: unknown) {
+    } catch (err) {
       console.error("Phantom connect error:", err);
     }
   }
 
-  // ============== Disconnect ==============
+  // ===================== DISCONNECT =====================
   function disconnectWallet() {
     setConnectedWallet(null);
     setEvmAddress(null);
     setSolanaAddress(null);
   }
 
-  // ============== SWITCH EVM CHAIN ==============
+  // ===================== SWITCH EVM CHAIN =====================
   async function switchChain(chainKey: ChainKey) {
     if (!evmAddress) {
       alert("No EVM address => connect metamask/coinbase first!");
       return;
     }
     if (connectedWallet !== "metamask" && connectedWallet !== "coinbase") {
-      alert("Chain switching => metamask or coinbase only!");
+      alert("EVM chain switching => metamask or coinbase only!");
       return;
     }
 
@@ -160,7 +152,7 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
         params: [{ chainId: chainData.chainId }],
       });
     } catch (error: unknown) {
-      if (error instanceof Error && (error as any).code === 4902) {
+      if ((error as any)?.code === 4902) {
         try {
           await window.ethereum?.request?.({
             method: "wallet_addEthereumChain",
@@ -183,112 +175,83 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
     }
   }
 
-  // ============== aggregator => truncated display address ==============
+  // ===================== TRUNCATED ADDRESS =====================
   let displayAddress: string | null = null;
   if (connectedWallet === "metamask" || connectedWallet === "coinbase") {
     if (evmAddress) {
       displayAddress = evmAddress.slice(0, 5) + "..." + evmAddress.slice(-4);
     }
-  } else if (connectedWallet === "phantom") {
-    if (solanaAddress) {
-      displayAddress = solanaAddress.slice(0, 5) + "..." + solanaAddress.slice(-4);
-    }
+  } else if (connectedWallet === "phantom" && solanaAddress) {
+    displayAddress = solanaAddress.slice(0, 5) + "..." + solanaAddress.slice(-4);
   }
 
-  // Wrap the onSelect function with useCallback for stability
+  // ===================== CHAIN SELECT CALLBACK =====================
   const handleSelectChain = useCallback((key: string) => {
     setSelectedChain(key as ChainKey);
     switchChain(key as ChainKey);
-  }, [setSelectedChain, switchChain, evmAddress, connectedWallet]);
+  }, []);
 
+  // The gradient-on-hover styling, with focus/active for mobile taps.
   const sharedHoverGradient = `
-    px-2 py-1
-    text-xs
+    border-2 
+    border-white 
+    rounded-full 
+    bg-transparent 
     text-white
-    border-2
-    border-white
-    rounded-full
-    bg-transparent
     transition-colors
     cursor-pointer
+
+    /* smaller for mobile */
+    px-1 py-0.5 text-[9px] 
+    /* normal for >= sm */
+    sm:px-2 sm:py-1 sm:text-xs
+
     hover:bg-gradient-to-r
     hover:from-pink-500
     hover:to-yellow-500
     hover:text-transparent
     hover:bg-clip-text
+
+    focus:bg-gradient-to-r
+    focus:from-pink-500
+    focus:to-yellow-500
+    focus:text-transparent
+    focus:bg-clip-text
+
+    active:bg-gradient-to-r
+    active:from-pink-500
+    active:to-yellow-500
+    active:text-transparent
+    active:bg-clip-text
   `;
 
   return (
-    <html lang="en">
-      <body className={`min-h-screen text-xs bg-black ${pressStart2P.className}`}>
-        <header className="p-2 bg-black border-b border-neutral-800">
-          <nav className="container mx-auto flex items-center justify-between">
-            {/* LEFT side => brand, chain dropdown, connect/disconnect */}
-            <div className="flex items-center">
-              <Link href="/" className="flex items-center space-x-2">
-                <Image
-                  src="/images/krbyland_logo.png"
-                  alt="KRBYLAND Logo"
-                  width={36}
-                  height={36}
-                />
-              </Link>
-
-              {/* If user is EVM => show chain dropdown */}
-              {connectedWallet !== "phantom" && evmAddress && (
-                <ChainDropdown
-                  chains={Object.keys(CHAINS).map((k) => ({
-                    key: k,
-                    chainName: CHAINS[k as ChainKey].label,
-                  }))}
-                  selected={selectedChain}
-                  onSelect={handleSelectChain}
-                />
-              )}
-
-              {/* If connected, show address + Disconnect. Else, show "Connect" */}
-              <div className="ml-2">
-                {displayAddress ? (
-                  <div className="flex items-center gap-2">
-                    <button className={sharedHoverGradient}>
-                      {displayAddress}
-                    </button>
-                    <button onClick={disconnectWallet} className={sharedHoverGradient}>
-                      Disconnect
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setShowWalletButtons(!showWalletButtons)}
-                    className={sharedHoverGradient}
-                  >
-                    {showWalletButtons ? "Hide Wallets" : "Connect Wallet"}
-                  </button>
-                )}
-              </div>
-
-              {/* Sub-buttons if not connected */}
-              {!displayAddress && showWalletButtons && (
-                <div className="ml-2 flex items-center space-x-2">
-                  <button onClick={connectMetaMask} className={sharedHoverGradient}>
-                    MetaMask
-                  </button>
-                  <button onClick={connectCoinbase} className={sharedHoverGradient}>
-                    Coinbase
-                  </button>
-                  <button onClick={connectPhantom} className={sharedHoverGradient}>
-                    Phantom
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* RIGHT side => nav menu */}
-            <ul className="flex gap-2">
+    <>
+      <header
+        className={`p-2 bg-black border-b border-neutral-800 text-[9px] sm:text-[10px] ${pressStart2P.className}`}
+      >
+        {/*
+          flex-wrap => can wrap on narrower screens
+          justify-between => brand on left, aggregator on the right
+        */}
+        <nav className="container mx-auto px-2 py-1 sm:px-4 sm:py-2 flex flex-wrap items-center justify-between">
+          
+          {/* LEFT => brand + nav */}
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+            <Link href="/" className="flex items-center">
+              <Image
+                src="/images/KRBYLAND.png"
+                alt="KRBYLAND Logo"
+                className="w-6 h-6 sm:w-9 sm:h-9"
+                width={36}
+                height={36}
+              />
+            </Link>
+            <ul className="flex flex-wrap gap-1 sm:gap-2">
               <li>
                 <Link
                   href="/"
-                  className="nav-override text-white hover:text-fuchsia-500 transition-colors text-xs"
+                  className="nav-override text-white hover:text-fuchsia-500 transition-colors"
                 >
                   Home
                 </Link>
@@ -296,7 +259,7 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
               <li>
                 <Link
                   href="/about"
-                  className="nav-override text-white hover:text-green-300 transition-colors text-xs"
+                  className="nav-override text-white hover:text-green-300 transition-colors"
                 >
                   About
                 </Link>
@@ -304,7 +267,7 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
               <li>
                 <Link
                   href="/livestream"
-                  className="nav-override text-white hover:text-cyan-300 transition-colors text-xs"
+                  className="nav-override text-white hover:text-cyan-300 transition-colors"
                 >
                   Livestream
                 </Link>
@@ -312,7 +275,7 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
               <li>
                 <Link
                   href="/contact"
-                  className="nav-override text-white hover:text-indigo-500 transition-colors text-xs"
+                  className="nav-override text-white hover:text-indigo-500 transition-colors"
                 >
                   Contact
                 </Link>
@@ -320,17 +283,75 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
               <li>
                 <Link
                   href="/settings"
-                  className="nav-override text-white hover:text-yellow-300 transition-colors text-xs"
+                  className="nav-override text-white hover:text-yellow-300 transition-colors"
                 >
                   Settings
                 </Link>
               </li>
             </ul>
-          </nav>
-        </header>
+          </div>
 
-        <main className="container mx-auto px-4 py-4">{children}</main>
-      </body>
-    </html>
+          {/* RIGHT => aggregator => 
+              We center its sub-items with `justify-center`.
+              This way, the aggregator container is on the right side, 
+              but the aggregator's own buttons are centered horizontally 
+              within that container.
+          */}
+          <div className="flex flex-wrap items-center gap-2 justify-center">
+            {displayAddress ? (
+              <>
+                {/* If EVM => chain dropdown */}
+                {connectedWallet !== "phantom" && evmAddress && (
+                  <ChainDropdown
+                    chains={Object.keys(CHAINS).map((k) => ({
+                      key: k,
+                      chainName: CHAINS[k as ChainKey].label,
+                    }))}
+                    selected={selectedChain}
+                    onSelect={handleSelectChain}
+                  />
+                )}
+                <button className={sharedHoverGradient}>
+                  {displayAddress}
+                </button>
+                <button
+                  onClick={disconnectWallet}
+                  className={sharedHoverGradient}
+                >
+                  Disconnect
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => setShowWalletButtons(!showWalletButtons)}
+                  className={sharedHoverGradient}
+                >
+                  {showWalletButtons ? "Hide Wallets" : "Connect Wallet"}
+                </button>
+                {showWalletButtons && (
+                  <div className="flex flex-wrap items-center gap-2 justify-center">
+                    <button onClick={connectMetaMask} className={sharedHoverGradient}>
+                      MetaMask
+                    </button>
+                    <button onClick={connectCoinbase} className={sharedHoverGradient}>
+                      Coinbase
+                    </button>
+                    <button onClick={connectPhantom} className={sharedHoverGradient}>
+                      Phantom
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </nav>
+      </header>
+
+      {/* MAIN => pass-through for the rest */}
+      <main className="container mx-auto px-2 py-2 sm:px-4 sm:py-4">
+        {children}
+      </main>
+    </>
   );
 }
