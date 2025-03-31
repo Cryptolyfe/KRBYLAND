@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { Eip1193Provider, BrowserProvider } from "ethers";
 import "../globals.css";
 import Image from "next/image";
@@ -18,31 +18,21 @@ const CHAINS = {
   ETHEREUM: {
     label: "Ethereum",
     chainId: "0x1",
-    chainName: "Ethereum Mainnet",
-    nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-    rpcUrls: ["https://mainnet.infura.io/v3/YOUR_INFURA_KEY"],
-    blockExplorerUrls: ["https://etherscan.io"],
+    /* ... your configuration ... */
   },
   POLYGON: {
     label: "Polygon",
     chainId: "0x89",
-    chainName: "Polygon Mainnet",
-    nativeCurrency: { name: "MATIC", symbol: "MATIC", decimals: 18 },
-    rpcUrls: ["https://polygon-rpc.com"],
-    blockExplorerUrls: ["https://polygonscan.com"],
+    /* ... your configuration ... */
   },
-  // etc...
+  // add more as needed
 } as const;
 
 type ChainKey = keyof typeof CHAINS;
 type PhantomNetworkKey = "SOLANA" | "SUI";
 
-export default function WalletConnectLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  // ===================== STATE =====================
+export default function WalletConnectLayout({ children }: { children: React.ReactNode }) {
+  // State
   const [connectedWallet, setConnectedWallet] =
     useState<"metamask" | "coinbase" | "phantom" | null>(null);
   const [evmAddress, setEvmAddress] = useState<string | null>(null);
@@ -50,7 +40,7 @@ export default function WalletConnectLayout({
   const [selectedChain, setSelectedChain] = useState<ChainKey>("ETHEREUM");
   const [showWalletButtons, setShowWalletButtons] = useState(false);
 
-  // ===================== CONNECT: METAMASK =====================
+  // ============== CONNECT => METAMASK ==============
   async function connectMetaMask() {
     setConnectedWallet("metamask");
     setEvmAddress(null);
@@ -61,58 +51,56 @@ export default function WalletConnectLayout({
     }
     let chosenProvider = window.ethereum;
     if (window.ethereum.providers?.length) {
-      const mm = window.ethereum.providers.find((p: any) => p.isMetaMask);
+      const mm = window.ethereum.providers.find((p) => p.isMetaMask);
       if (mm) chosenProvider = mm;
     }
     if (!chosenProvider?.isMetaMask) {
       alert("MetaMask overshadowed or not found!");
       return;
     }
-
     try {
       const provider = new BrowserProvider(chosenProvider as Eip1193Provider);
       await provider.send("eth_requestAccounts", []);
       const signer = await provider.getSigner();
       setEvmAddress(await signer.getAddress());
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("MetaMask connect error:", err);
     }
   }
 
-  // ===================== CONNECT: COINBASE =====================
+  // ============== CONNECT => COINBASE ==============
   async function connectCoinbase() {
     setConnectedWallet("coinbase");
     setEvmAddress(null);
-
-    if (!window.ethereum) {
-      alert("No window.ethereum => Coinbase extension missing?");
+  
+    const { ethereum } = window as any;
+    if (!ethereum) {
+      alert("Coinbase Wallet extension is not installed.");
       return;
     }
-    let chosenProvider = window.ethereum;
-    if (window.ethereum.providers?.length) {
-      const cb = window.ethereum.providers.find((p: any) => p.isCoinbaseWallet);
-      if (cb) chosenProvider = cb;
+    let chosenProvider = ethereum;
+    if (ethereum.providers?.length) {
+      chosenProvider = ethereum.providers.find((p: any) => p.isCoinbaseWallet);
     }
     if (!chosenProvider?.isCoinbaseWallet) {
-      alert("Coinbase overshadowed or not found!");
+      alert("Coinbase Wallet is either overshadowed by another wallet or not found. Please ensure it's installed and enabled.");
       return;
     }
-
     try {
       const provider = new BrowserProvider(chosenProvider as Eip1193Provider);
       await provider.send("eth_requestAccounts", []);
       const signer = await provider.getSigner();
-      setEvmAddress(await signer.getAddress());
-    } catch (err) {
+      const address = await signer.getAddress();
+      setEvmAddress(address);
+    } catch (err: unknown) {
       console.error("Coinbase connect error:", err);
     }
   }
 
-  // ===================== CONNECT: PHANTOM (SOLANA) =====================
+  // ============== CONNECT => PHANTOM => SOLANA ==============
   async function connectPhantom() {
     setConnectedWallet("phantom");
     setEvmAddress(null);
-
     if (!window.solana?.isPhantom) {
       alert("Phantom overshadowed or not found => Solana!");
       return;
@@ -120,19 +108,19 @@ export default function WalletConnectLayout({
     try {
       const resp = await window.solana.connect();
       setSolanaAddress(resp.publicKey.toString());
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Phantom connect error:", err);
     }
   }
 
-  // ===================== DISCONNECT =====================
+  // ============== DISCONNECT ==============
   function disconnectWallet() {
     setConnectedWallet(null);
     setEvmAddress(null);
     setSolanaAddress(null);
   }
 
-  // ===================== SWITCH EVM CHAIN =====================
+  // ============== SWITCH EVM CHAIN ==============
   async function switchChain(chainKey: ChainKey) {
     if (!evmAddress) {
       alert("No EVM address => connect metamask/coinbase first!");
@@ -142,17 +130,15 @@ export default function WalletConnectLayout({
       alert("EVM chain switching => metamask or coinbase only!");
       return;
     }
-
     const chainData = CHAINS[chainKey];
     if (!chainData) return;
-
     try {
       await window.ethereum?.request?.({
         method: "wallet_switchEthereumChain",
         params: [{ chainId: chainData.chainId }],
       });
     } catch (error: unknown) {
-      if ((error as any)?.code === 4902) {
+      if (error instanceof Error && (error as any).code === 4902) {
         try {
           await window.ethereum?.request?.({
             method: "wallet_addEthereumChain",
@@ -175,7 +161,7 @@ export default function WalletConnectLayout({
     }
   }
 
-  // ===================== TRUNCATED ADDRESS =====================
+  // ============== Display Address Aggregator ==============
   let displayAddress: string | null = null;
   if (connectedWallet === "metamask" || connectedWallet === "coinbase") {
     if (evmAddress) {
@@ -185,122 +171,87 @@ export default function WalletConnectLayout({
     displayAddress = solanaAddress.slice(0, 5) + "..." + solanaAddress.slice(-4);
   }
 
-  // ===================== CHAIN SELECT CALLBACK =====================
+  // ============== EVM Chain Selection Callback ==============
   const handleSelectChain = useCallback((key: string) => {
     setSelectedChain(key as ChainKey);
     switchChain(key as ChainKey);
   }, []);
 
-  // The gradient-on-hover styling, with focus/active for mobile taps.
-  const sharedHoverGradient = `
-    border-2 
-    border-white 
-    rounded-full 
-    bg-transparent 
+  // ============== Aggregator Button Styling ==============
+  const aggregatorBtn = `
+    px-1 py-0.5
+    sm:px-2 sm:py-1
+    text-[8px]
+    sm:text-[10px]
+    border-2
+    border-white
+    rounded-full
+    bg-transparent
     text-white
     transition-colors
     cursor-pointer
-
-    /* smaller for mobile */
-    px-1 py-0.5 text-[9px] 
-    /* normal for >= sm */
-    sm:px-2 sm:py-1 sm:text-xs
-
     hover:bg-gradient-to-r
     hover:from-pink-500
     hover:to-yellow-500
     hover:text-transparent
     hover:bg-clip-text
+  `;
 
-    focus:bg-gradient-to-r
-    focus:from-pink-500
-    focus:to-yellow-500
-    focus:text-transparent
-    focus:bg-clip-text
-
-    active:bg-gradient-to-r
-    active:from-pink-500
-    active:to-yellow-500
-    active:text-transparent
-    active:bg-clip-text
+  // ============== Nav Link Styling ==============
+  const navLink = `
+    nav-override
+    text-white
+    transition-colors
   `;
 
   return (
     <>
-      <header
-        className={`p-2 bg-black border-b border-neutral-800 text-[9px] sm:text-[10px] ${pressStart2P.className}`}
-      >
-        {/*
-          flex-wrap => can wrap on narrower screens
-          justify-between => brand on left, aggregator on the right
-        */}
-        <nav className="container mx-auto px-2 py-1 sm:px-4 sm:py-2 flex flex-wrap items-center justify-between">
-          
-          {/* LEFT => brand + nav */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+      <header className={`p-2 bg-[radial-gradient(circle,_var(--tw-gradient-stops))] from-gray-800 via-white-900 to-gray-900 border-b border-neutral-800`}>
+        <nav className="container mx-auto px-4 py-2 flex flex-wrap items-center">
+          {/* LEFT: Brand + Nav */}
+          <div className="flex items-center gap-2">
             <Link href="/" className="flex items-center">
               <Image
                 src="/images/KRBYLAND.png"
                 alt="KRBYLAND Logo"
-                className="w-6 h-6 sm:w-9 sm:h-9"
-                width={36}
-                height={36}
+                className="w-5 h-5 sm:w-8 sm:h-8"
+                width={32}
+                height={32}
               />
             </Link>
-            <ul className="flex flex-wrap gap-1 sm:gap-2">
+            <ul className="flex gap-1 sm:gap-2 text-[8px] sm:text-[10px]">
               <li>
-                <Link
-                  href="/"
-                  className="nav-override text-white hover:text-fuchsia-500 transition-colors"
-                >
+                <Link href="/" className={`${navLink} hover:text-fuchsia-500`}>
                   Home
                 </Link>
               </li>
               <li>
-                <Link
-                  href="/about"
-                  className="nav-override text-white hover:text-green-300 transition-colors"
-                >
+                <Link href="/about" className={`${navLink} hover:text-green-300`}>
                   About
                 </Link>
               </li>
               <li>
-                <Link
-                  href="/livestream"
-                  className="nav-override text-white hover:text-cyan-300 transition-colors"
-                >
+                <Link href="/livestream" className={`${navLink} hover:text-cyan-300`}>
                   Livestream
                 </Link>
               </li>
               <li>
-                <Link
-                  href="/contact"
-                  className="nav-override text-white hover:text-indigo-500 transition-colors"
-                >
+                <Link href="/contact" className={`${navLink} hover:text-indigo-500`}>
                   Contact
                 </Link>
               </li>
               <li>
-                <Link
-                  href="/settings"
-                  className="nav-override text-white hover:text-yellow-300 transition-colors"
-                >
+                <Link href="/settings" className={`${navLink} hover:text-yellow-300`}>
                   Settings
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* RIGHT => aggregator => 
-              We center its sub-items with `justify-center`.
-              This way, the aggregator container is on the right side, 
-              but the aggregator's own buttons are centered horizontally 
-              within that container.
-          */}
-          <div className="flex flex-wrap items-center gap-2 justify-center">
+          {/* RIGHT: Aggregator */}
+          <div className="ml-auto w-full sm:w-auto flex flex-wrap items-center justify-end gap-1 sm:gap-2 mt-2 sm:mt-0">
             {displayAddress ? (
               <>
-                {/* If EVM => chain dropdown */}
                 {connectedWallet !== "phantom" && evmAddress && (
                   <ChainDropdown
                     chains={Object.keys(CHAINS).map((k) => ({
@@ -311,13 +262,8 @@ export default function WalletConnectLayout({
                     onSelect={handleSelectChain}
                   />
                 )}
-                <button className={sharedHoverGradient}>
-                  {displayAddress}
-                </button>
-                <button
-                  onClick={disconnectWallet}
-                  className={sharedHoverGradient}
-                >
+                <button className={aggregatorBtn}>{displayAddress}</button>
+                <button onClick={disconnectWallet} className={aggregatorBtn}>
                   Disconnect
                 </button>
               </>
@@ -325,19 +271,19 @@ export default function WalletConnectLayout({
               <>
                 <button
                   onClick={() => setShowWalletButtons(!showWalletButtons)}
-                  className={sharedHoverGradient}
+                  className={aggregatorBtn}
                 >
                   {showWalletButtons ? "Hide Wallets" : "Connect Wallet"}
                 </button>
                 {showWalletButtons && (
-                  <div className="flex flex-wrap items-center gap-2 justify-center">
-                    <button onClick={connectMetaMask} className={sharedHoverGradient}>
+                  <div className="flex flex-wrap items-center justify-end gap-1 sm:gap-2">
+                    <button onClick={connectMetaMask} className={aggregatorBtn}>
                       MetaMask
                     </button>
-                    <button onClick={connectCoinbase} className={sharedHoverGradient}>
+                    <button onClick={connectCoinbase} className={aggregatorBtn}>
                       Coinbase
                     </button>
-                    <button onClick={connectPhantom} className={sharedHoverGradient}>
+                    <button onClick={connectPhantom} className={aggregatorBtn}>
                       Phantom
                     </button>
                   </div>
@@ -348,10 +294,7 @@ export default function WalletConnectLayout({
         </nav>
       </header>
 
-      {/* MAIN => pass-through for the rest */}
-      <main className="container mx-auto px-2 py-2 sm:px-4 sm:py-4">
-        {children}
-      </main>
+      <main className="container mx-auto px-4 py-4">{children}</main>
     </>
   );
 }
