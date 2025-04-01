@@ -18,12 +18,20 @@ const CHAINS = {
   ETHEREUM: {
     label: "Ethereum",
     chainId: "0x1",
-    /* ... your configuration ... */
+    // ... your configuration ...
+    chainName: "Ethereum Mainnet",
+    nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+    rpcUrls: ["https://mainnet.infura.io/v3/YOUR_INFURA_KEY"],
+    blockExplorerUrls: ["https://etherscan.io"],
   },
   POLYGON: {
     label: "Polygon",
     chainId: "0x89",
-    /* ... your configuration ... */
+    // ... your configuration ...
+    chainName: "Polygon Mainnet",
+    nativeCurrency: { name: "MATIC", symbol: "MATIC", decimals: 18 },
+    rpcUrls: ["https://polygon-rpc.com"],
+    blockExplorerUrls: ["https://polygonscan.com"],
   },
   // add more as needed
 } as const;
@@ -206,7 +214,9 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
 
   return (
     <>
-      <header className={`p-2 bg-[radial-gradient(circle,_var(--tw-gradient-stops))] from-gray-800 via-white-900 to-gray-900 border-b border-neutral-800`}>
+      <header
+        className={`p-2 bg-[radial-gradient(circle, var(--tw-gradient-stops))] from-gray-800 via-gray-900 to-black border-b border-neutral-800 ${pressStart2P.className}`}
+      >
         <nav className="container mx-auto px-4 py-2 flex flex-wrap items-center">
           {/* LEFT: Brand + Nav */}
           <div className="flex items-center gap-2">
