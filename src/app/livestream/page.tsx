@@ -4,18 +4,6 @@ import React, { useState, useEffect, useRef } from "react";
 import Hls from "hls.js";
 import ReactPlayer from "react-player";
 
-/** 
- * A single page that conditionally renders:
- *  - HLS
- *  - WebRTC
- *  - YouTube
- *  - Twitch
- *  - Facebook
- *  - Instagram
- *  - TikTok
- * 
- * We'll store these in the 'selected' state. 
- */
 type StreamOption =
   | "hls"
   | "webrtc"
@@ -25,27 +13,58 @@ type StreamOption =
   | "instagram"
   | "tiktok";
 
-/** 
- * Renamed from MegaLivestreamPage => Page, so Next.js 
- * treats this as the default export for /livestream.
- */
 export default function Page() {
-  // Track selected approach
   const [selected, setSelected] = useState<StreamOption>("hls");
 
   return (
     <main className="min-h-screen bg-black text-white flex flex-col items-center p-8 w-full">
-      <h1 className="text-3xl mb-4">Mega Livestream</h1>
+      {/* Center the main heading */}
+      <h1 className="text-3xl mb-4 text-center">Mega Livestream</h1>
 
-      {/* Horizontal nav => 7 buttons, all using pink->yellow for hover */}
-      <nav className="mb-6 flex gap-4 flex-wrap">
-        <StreamNavButton label="HLS" value="hls" selected={selected} setSelected={setSelected} />
-        <StreamNavButton label="WebRTC" value="webrtc" selected={selected} setSelected={setSelected} />
-        <StreamNavButton label="YouTube" value="youtube" selected={selected} setSelected={setSelected} />
-        <StreamNavButton label="Twitch" value="twitch" selected={selected} setSelected={setSelected} />
-        <StreamNavButton label="Facebook" value="facebook" selected={selected} setSelected={setSelected} />
-        <StreamNavButton label="Instagram" value="instagram" selected={selected} setSelected={setSelected} />
-        <StreamNavButton label="TikTok" value="tiktok" selected={selected} setSelected={setSelected} />
+      {/* Center the nav items for both mobile & desktop */}
+      <nav className="mb-6 flex flex-wrap items-center justify-center gap-2 sm:gap-4">
+        <StreamNavButton
+          label="HLS"
+          value="hls"
+          selected={selected}
+          setSelected={setSelected}
+        />
+        <StreamNavButton
+          label="WebRTC"
+          value="webrtc"
+          selected={selected}
+          setSelected={setSelected}
+        />
+        <StreamNavButton
+          label="YouTube"
+          value="youtube"
+          selected={selected}
+          setSelected={setSelected}
+        />
+        <StreamNavButton
+          label="Twitch"
+          value="twitch"
+          selected={selected}
+          setSelected={setSelected}
+        />
+        <StreamNavButton
+          label="Facebook"
+          value="facebook"
+          selected={selected}
+          setSelected={setSelected}
+        />
+        <StreamNavButton
+          label="Instagram"
+          value="instagram"
+          selected={selected}
+          setSelected={setSelected}
+        />
+        <StreamNavButton
+          label="TikTok"
+          value="tiktok"
+          selected={selected}
+          setSelected={setSelected}
+        />
       </nav>
 
       {/* Conditional Rendering */}
@@ -60,9 +79,11 @@ export default function Page() {
   );
 }
 
-/** 
- * A small helper button to reduce repeated classes.
- * All use the same from-pink-500 to-yellow-500 for rainbow hover
+/**
+ * StreamNavButton
+ *   - Mobile (<640px): px-1 py-0.5, text-[9px]
+ *   - Desktop (≥640px): px-4 py-2, text-base
+ * Centers remain the same otherwise
  */
 function StreamNavButton({
   label,
@@ -81,7 +102,9 @@ function StreamNavButton({
     <button
       onClick={() => setSelected(value)}
       className={`
-        px-4 py-2 transition-colors text-white
+        px-1 py-0.5 text-[9px]
+        sm:px-4 sm:py-2 sm:text-base
+        transition-colors text-white
         ${isSelected ? "bg-gray-700" : ""}
         hover:bg-gradient-to-r hover:from-pink-500 hover:to-yellow-500
         hover:text-transparent hover:bg-clip-text
@@ -92,7 +115,7 @@ function StreamNavButton({
   );
 }
 
-/** 2) HLS Player Subcomponent */
+/** ============== 1) HLS Player Subcomponent ============== */
 function HlsPlayer() {
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -107,7 +130,11 @@ function HlsPlayer() {
 
   return (
     <div className="flex flex-col items-center w-full">
-      <h2 className="text-2xl mb-2">HLS (Standard Latency)</h2>
+      {/*
+        Shrink heading on mobile, normal on desktop => text-xl sm:text-2xl
+        & center it => text-center
+      */}
+      <h2 className="text-xl sm:text-2xl mb-2 text-center">HLS (Standard Latency)</h2>
       <video
         ref={videoRef}
         controls
@@ -119,35 +146,27 @@ function HlsPlayer() {
   );
 }
 
-/** 3) WebRTC Subcomponent => minimal placeholder */
+/** ============== 2) WebRTC Subcomponent ============== */
 function WebrtcPlayer() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Example: Daily or LiveKit integration
-    // const frame = DailyIframe.createFrame(containerRef.current!, { ... });
-    // frame.join({ url: "https://your.daily.co/room" });
-    // return () => frame.destroy();
   }, []);
 
   return (
     <div className="flex flex-col items-center w-full">
-      <h2 className="text-2xl mb-2">WebRTC (Low Latency)</h2>
-      <div
-        ref={containerRef}
-        className="w-full aspect-video bg-neutral-700"
-      >
-        {/* The WebRTC library attaches a video/call frame here */}
-      </div>
+      <h2 className="text-xl sm:text-2xl mb-2 text-center">WebRTC (Low Latency)</h2>
+      <div ref={containerRef} className="w-full aspect-video bg-neutral-700" />
     </div>
   );
 }
 
-/** 4) YouTube Player Subcomponent */
+/** ============== 3) YouTube Player Subcomponent ============== */
 function YouTubePlayer() {
   return (
     <div className="flex flex-col items-center w-full">
-      <h2 className="text-2xl mb-2">YouTube Live</h2>
+      <h2 className="text-xl sm:text-2xl mb-2 text-center">YouTube Live</h2>
       <div className="w-full aspect-video">
         <ReactPlayer
           url="https://www.youtube.com/watch?v=YOUR_LIVE_STREAM_ID"
@@ -161,11 +180,11 @@ function YouTubePlayer() {
   );
 }
 
-/** 5) Twitch Player */
+/** ============== 4) Twitch Player Subcomponent ============== */
 function TwitchPlayer() {
   return (
     <div className="flex flex-col items-center w-full">
-      <h2 className="text-2xl mb-2">Twitch Live</h2>
+      <h2 className="text-xl sm:text-2xl mb-2 text-center">Twitch Live</h2>
       <div className="w-full aspect-video">
         <ReactPlayer
           url="https://www.twitch.tv/YourChannel"
@@ -179,11 +198,11 @@ function TwitchPlayer() {
   );
 }
 
-/** 6) Facebook Player */
+/** ============== 5) Facebook Player ============== */
 function FacebookPlayer() {
   return (
     <div className="flex flex-col items-center w-full">
-      <h2 className="text-2xl mb-2">Facebook Live</h2>
+      <h2 className="text-xl sm:text-2xl mb-2 text-center">Facebook Live</h2>
       <div className="w-full aspect-video">
         <iframe
           src="https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2FFacebookLiveVideoURL"
@@ -198,13 +217,18 @@ function FacebookPlayer() {
   );
 }
 
-/** 7) Instagram Player */
+/** ============== 6) Instagram Player ============== */
 function InstagramPlayer() {
   return (
     <div className="flex flex-col items-center w-full">
-      <h2 className="text-2xl mb-2">Instagram Live (coming soon!) </h2>
+      {/* Heading => shrink on mobile */}
+      <h2 className="text-xl sm:text-2xl mb-2 text-center">Instagram Live (coming soon!)</h2>
       <div className="w-full aspect-video bg-neutral-700 flex items-center justify-center">
-        <p className="text-sm text-gray-400">
+        {/* 
+          The disclaimer => super small on mobile, normal on desktop
+          plus text-center
+        */}
+        <p className="text-[9px] sm:text-sm text-center text-gray-400">
           Embedding Instagram Live is not officially supported
         </p>
       </div>
@@ -212,13 +236,18 @@ function InstagramPlayer() {
   );
 }
 
-/** 8) TikTok Player */
+/** ============== 7) TikTok Player ============== */
 function TiktokPlayer() {
   return (
     <div className="flex flex-col items-center w-full">
-      <h2 className="text-2xl mb-2">TikTok Live (coming soon!)</h2>
+      {/* Heading => shrink on mobile */}
+      <h2 className="text-xl sm:text-2xl mb-2 text-center">TikTok Live (coming soon!)</h2>
       <div className="w-full aspect-video bg-neutral-700 flex items-center justify-center">
-        <p className="text-sm text-gray-400">
+        {/* 
+          The disclaimer => super small on mobile, normal on desktop 
+          & centered
+        */}
+        <p className="text-[9px] sm:text-sm text-center text-gray-400">
           Embedding TikTok Live not officially supported
         </p>
       </div>
