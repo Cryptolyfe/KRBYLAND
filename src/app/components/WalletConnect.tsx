@@ -14,12 +14,14 @@ const pressStart2P = Press_Start_2P({
   display: "swap",
 });
 
+/** 
+ * EVM chain configs => Ethereum, Polygon, Arbitrum, Avalanche, Base, Optimism
+ */
 const CHAINS = {
   ETHEREUM: {
     label: "Ethereum",
     chainId: "0x1",
-    // ... your configuration ...
-    chainName: "Ethereum Mainnet",
+    chainName: "Ethereum",
     nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
     rpcUrls: ["https://mainnet.infura.io/v3/YOUR_INFURA_KEY"],
     blockExplorerUrls: ["https://etherscan.io"],
@@ -27,24 +29,65 @@ const CHAINS = {
   POLYGON: {
     label: "Polygon",
     chainId: "0x89",
-    // ... your configuration ...
-    chainName: "Polygon Mainnet",
+    chainName: "Polygon",
     nativeCurrency: { name: "MATIC", symbol: "MATIC", decimals: 18 },
     rpcUrls: ["https://polygon-rpc.com"],
     blockExplorerUrls: ["https://polygonscan.com"],
   },
-  // add more as needed
+  ARBITRUM: {
+    label: "Arbitrum",
+    chainId: "0xa4b1",
+    chainName: "Arbitrum One",
+    nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+    rpcUrls: ["https://arb1.arbitrum.io/rpc"],
+    blockExplorerUrls: ["https://arbiscan.io"],
+  },
+  AVALANCHE: {
+    label: "Avalanche",
+    chainId: "0xa86a",
+    chainName: "Avalanche",
+    nativeCurrency: { name: "Avalanche", symbol: "AVAX", decimals: 18 },
+    rpcUrls: ["https://api.avax.network/ext/bc/C/rpc"],
+    blockExplorerUrls: ["https://snowtrace.io"],
+  },
+  BASE: {
+    label: "Base",
+    chainId: "0x2105",
+    chainName: "Base Mainnet",
+    nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+    rpcUrls: ["https://mainnet.base.org"],
+    blockExplorerUrls: ["https://explorer.base.org"],
+  },
+  OPTIMISM: {
+    label: "Optimism",
+    chainId: "0xa",
+    chainName: "Optimism",
+    nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+    rpcUrls: ["https://mainnet.optimism.io"],
+    blockExplorerUrls: ["https://optimistic.etherscan.io"],
+  },
 } as const;
 
 type ChainKey = keyof typeof CHAINS;
+
+/** 
+ * Phantom network => "SOLANA" or "SUI"
+ */
 type PhantomNetworkKey = "SOLANA" | "SUI";
 
-export default function WalletConnectLayout({ children }: { children: React.ReactNode }) {
-  // State
-  const [connectedWallet, setConnectedWallet] =
-    useState<"metamask" | "coinbase" | "phantom" | null>(null);
-  const [evmAddress, setEvmAddress] = useState<string | null>(null);
-  const [solanaAddress, setSolanaAddress] = useState<string | null>(null);
+interface WalletConnectLayoutProps {
+  children?: React.ReactNode;
+}
+
+export default function WalletConnectLayout({ children }: WalletConnectLayoutProps) {
+  const [connectedWallet, setConnectedWallet] = useState<"metamask"|"coinbase"|"phantom"|null>(null);
+  const [evmAddress, setEvmAddress] = useState<string|null>(null);
+
+  // Phantom => which "network"? => solana or sui
+  const [phantomNetwork, setPhantomNetwork] = useState<PhantomNetworkKey|null>(null);
+  const [solanaAddress, setSolanaAddress] = useState<string|null>(null);
+
+  // EVM chain selection
   const [selectedChain, setSelectedChain] = useState<ChainKey>("ETHEREUM");
   const [showWalletButtons, setShowWalletButtons] = useState(false);
 
@@ -52,6 +95,8 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
   async function connectMetaMask() {
     setConnectedWallet("metamask");
     setEvmAddress(null);
+    setPhantomNetwork(null);
+    setSolanaAddress(null);
 
     if (!window.ethereum) {
       alert("No window.ethereum => MetaMask missing?");
@@ -59,20 +104,21 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
     }
     let chosenProvider = window.ethereum;
     if (window.ethereum.providers?.length) {
-      const mm = window.ethereum.providers.find((p) => p.isMetaMask);
+      const mm = window.ethereum.providers.find((p: any) => p.isMetaMask);
       if (mm) chosenProvider = mm;
     }
     if (!chosenProvider?.isMetaMask) {
       alert("MetaMask overshadowed or not found!");
       return;
     }
+
     try {
       const provider = new BrowserProvider(chosenProvider as Eip1193Provider);
       await provider.send("eth_requestAccounts", []);
       const signer = await provider.getSigner();
       setEvmAddress(await signer.getAddress());
-    } catch (err: unknown) {
-      console.error("MetaMask connect error:", err);
+    } catch (err) {
+      console.error("MetaMask connect error =>", err);
     }
   }
 
@@ -80,28 +126,32 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
   async function connectCoinbase() {
     setConnectedWallet("coinbase");
     setEvmAddress(null);
-  
-    const { ethereum } = window as any;
-    if (!ethereum) {
-      alert("Coinbase Wallet extension is not installed.");
+    setPhantomNetwork(null);
+    setSolanaAddress(null);
+
+    if (!window.ethereum) {
+      alert("No window.ethereum => Coinbase extension missing?");
       return;
     }
-    let chosenProvider = ethereum;
-    if (ethereum.providers?.length) {
-      chosenProvider = ethereum.providers.find((p: any) => p.isCoinbaseWallet);
+
+    let chosenProvider = window.ethereum;
+    if (window.ethereum.providers?.length) {
+      const cb = window.ethereum.providers.find((p: any) => p.isCoinbaseWallet);
+      if (cb) chosenProvider = cb;
     }
+
     if (!chosenProvider?.isCoinbaseWallet) {
-      alert("Coinbase Wallet is either overshadowed by another wallet or not found. Please ensure it's installed and enabled.");
+      alert("Coinbase overshadowed or not found!");
       return;
     }
+
     try {
       const provider = new BrowserProvider(chosenProvider as Eip1193Provider);
       await provider.send("eth_requestAccounts", []);
       const signer = await provider.getSigner();
-      const address = await signer.getAddress();
-      setEvmAddress(address);
-    } catch (err: unknown) {
-      console.error("Coinbase connect error:", err);
+      setEvmAddress(await signer.getAddress());
+    } catch (err) {
+      console.error("Coinbase connect error =>", err);
     }
   }
 
@@ -109,6 +159,9 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
   async function connectPhantom() {
     setConnectedWallet("phantom");
     setEvmAddress(null);
+    setPhantomNetwork(null);
+    setSolanaAddress(null);
+
     if (!window.solana?.isPhantom) {
       alert("Phantom overshadowed or not found => Solana!");
       return;
@@ -116,8 +169,9 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
     try {
       const resp = await window.solana.connect();
       setSolanaAddress(resp.publicKey.toString());
-    } catch (err: unknown) {
-      console.error("Phantom connect error:", err);
+      setPhantomNetwork("SOLANA");
+    } catch (err) {
+      console.error("Phantom(Solana) connect error =>", err);
     }
   }
 
@@ -125,6 +179,7 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
   function disconnectWallet() {
     setConnectedWallet(null);
     setEvmAddress(null);
+    setPhantomNetwork(null);
     setSolanaAddress(null);
   }
 
@@ -138,15 +193,17 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
       alert("EVM chain switching => metamask or coinbase only!");
       return;
     }
+
     const chainData = CHAINS[chainKey];
     if (!chainData) return;
+
     try {
       await window.ethereum?.request?.({
         method: "wallet_switchEthereumChain",
         params: [{ chainId: chainData.chainId }],
       });
-    } catch (error: unknown) {
-      if (error instanceof Error && (error as any).code === 4902) {
+    } catch (error: any) {
+      if (error.code === 4902) {
         try {
           await window.ethereum?.request?.({
             method: "wallet_addEthereumChain",
@@ -161,35 +218,37 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
             ],
           });
         } catch (addErr) {
-          console.error("Failed to add chain", addErr);
+          console.error("Failed to add chain =>", addErr);
         }
       } else {
-        console.error("Failed to switch chain", error);
+        console.error("Failed to switch chain =>", error);
       }
     }
   }
 
-  // ============== Display Address Aggregator ==============
+  // aggregator => truncated address
   let displayAddress: string | null = null;
   if (connectedWallet === "metamask" || connectedWallet === "coinbase") {
     if (evmAddress) {
-      displayAddress = evmAddress.slice(0, 5) + "..." + evmAddress.slice(-4);
+      displayAddress = evmAddress.slice(0,5) + "..." + evmAddress.slice(-4);
     }
-  } else if (connectedWallet === "phantom" && solanaAddress) {
-    displayAddress = solanaAddress.slice(0, 5) + "..." + solanaAddress.slice(-4);
+  } else if (connectedWallet === "phantom") {
+    if (phantomNetwork === "SOLANA" && solanaAddress) {
+      displayAddress = solanaAddress.slice(0,5) + "..." + solanaAddress.slice(-4);
+    }
   }
 
-  // ============== EVM Chain Selection Callback ==============
+  // EVM chain selection callback
   const handleSelectChain = useCallback((key: string) => {
     setSelectedChain(key as ChainKey);
     switchChain(key as ChainKey);
-  }, []);
+  }, [evmAddress, connectedWallet]);
 
-  // ============== Aggregator Button Styling ==============
+  // Slightly smaller text on mobile => `text-[6px] sm:text-[10px]`
   const aggregatorBtn = `
     px-1 py-0.5
     sm:px-2 sm:py-1
-    text-[8px]
+    text-[6px]
     sm:text-[10px]
     border-2
     border-white
@@ -205,7 +264,6 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
     hover:bg-clip-text
   `;
 
-  // ============== Nav Link Styling ==============
   const navLink = `
     nav-override
     text-white
@@ -214,11 +272,10 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
 
   return (
     <>
-      <header
-        className={`p-2 bg-[radial-gradient(circle, var(--tw-gradient-stops))] from-gray-800 via-gray-900 to-black border-b border-neutral-800 ${pressStart2P.className}`}
-      >
+      {/* aggregator nav bar code => same styling/sizing as before */}
+      <header className={`p-2 bg-black border-b border-neutral-800 ${pressStart2P.className}`}>
         <nav className="container mx-auto px-4 py-2 flex flex-wrap items-center">
-          {/* LEFT: Brand + Nav */}
+          {/* LEFT => brand + nav */}
           <div className="flex items-center gap-2">
             <Link href="/" className="flex items-center">
               <Image
@@ -258,10 +315,11 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
             </ul>
           </div>
 
-          {/* RIGHT: Aggregator */}
+          {/* RIGHT => aggregator => chain or phantom net => address => disconnect */}
           <div className="ml-auto w-full sm:w-auto flex flex-wrap items-center justify-end gap-1 sm:gap-2 mt-2 sm:mt-0">
             {displayAddress ? (
               <>
+                {/* EVM chain dropdown if metamask/coinbase */}
                 {connectedWallet !== "phantom" && evmAddress && (
                   <ChainDropdown
                     chains={Object.keys(CHAINS).map((k) => ({
@@ -272,6 +330,7 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
                     onSelect={handleSelectChain}
                   />
                 )}
+
                 <button className={aggregatorBtn}>{displayAddress}</button>
                 <button onClick={disconnectWallet} className={aggregatorBtn}>
                   Disconnect
@@ -285,6 +344,7 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
                 >
                   {showWalletButtons ? "Hide Wallets" : "Connect Wallet"}
                 </button>
+
                 {showWalletButtons && (
                   <div className="flex flex-wrap items-center justify-end gap-1 sm:gap-2">
                     <button onClick={connectMetaMask} className={aggregatorBtn}>
@@ -304,7 +364,8 @@ export default function WalletConnectLayout({ children }: { children: React.Reac
         </nav>
       </header>
 
-      <main className="container mx-auto px-4 py-4">{children}</main>
+      {/* If you want aggregator to render children, uncomment below: */}
+      {/* <div>{children}</div> */}
     </>
   );
 }
