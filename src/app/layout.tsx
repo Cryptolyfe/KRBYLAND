@@ -3,6 +3,8 @@ import { Press_Start_2P } from "next/font/google";
 import type { Metadata } from "next";
 import React from "react";
 import WalletConnectLayout from "./components/WalletConnect";
+import Navbar from "./components/navbar";
+
 
 const pressStart2P = Press_Start_2P({
   subsets: ["latin"],

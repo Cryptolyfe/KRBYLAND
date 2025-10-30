@@ -1,0 +1,69 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "forge-std/Test.sol";
+import {KRBYLANDEntitlements} from "../src/KRBYLANDEntitlements.sol";
+
+contract KRBYLANDEntitlementsTest is Test {
+    KRBYLANDEntitlements ent;
+    address owner = address(this);
+    address alice = address(0xA11CE);
+    address bob   = address(0xB0B);
+    uint256 id = 1;
+
+    function setUp() public {
+        ent = new KRBYLANDEntitlements(
+            "ipfs://base/{id}.json",
+            "KRBYLAND Entitlements",
+            "KENT"
+        );
+        ent.mint(alice, id, 10, "");
+    }
+
+    function test_Metadata() public {
+        assertEq(ent.name(), "KRBYLAND Entitlements");
+        assertEq(ent.symbol(), "KENT");
+    }
+
+    function test_Transfer_WhenNotPaused() public {
+        vm.prank(alice);
+        ent.safeTransferFrom(alice, bob, id, 1, "");
+        assertEq(ent.balanceOf(bob, id), 1);
+        assertEq(ent.balanceOf(alice, id), 9);
+    }
+
+    function test_Pause_BlocksTransfers() public {
+        ent.pause();
+        vm.prank(alice);
+        vm.expectRevert();
+        ent.safeTransferFrom(alice, bob, id, 1, "");
+    }
+
+    function test_Unpause_AllowsTransfersAgain() public {
+        ent.pause();
+        ent.unpause();
+        vm.prank(alice);
+        ent.safeTransferFrom(alice, bob, id, 1, "");
+        assertEq(ent.balanceOf(bob, id), 1);
+    }
+
+    function test_OnlyOwnerCanMint() public {
+        vm.prank(alice);
+        vm.expectRevert();
+        ent.mint(alice, id, 1, "");
+    }
+
+    function test_BatchMint_OwnerOnly() public {
+        uint256[] memory ids = new uint256[](2);
+        ids,[object Object], = 2;
+        ids,[object Object], = 3;
+
+        amts,[object Object], = 5;
+        amts,[object Object], = 7;
+        amts,[object Object], = 7;
+
+        ent.mintBatch(alice, ids, amts, "");
+        assertEq(ent.balanceOf(alice, 2), 5);
+        assertEq(ent.balanceOf(alice, 3), 7);
+    }
+}
